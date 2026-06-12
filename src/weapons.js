@@ -252,6 +252,9 @@ export class WeaponSystem {
     };
   }
 
+  magSize() { return CONFIG.crossbow.magSize + (this.game.mods?.magSize ?? 0); }
+  maxCharges() { return CONFIG.hex.charges + (this.game.mods?.hexCharges ?? 0); }
+
   other() { return this.current === this.crossbow ? 'hex' : 'crossbow'; }
 
   select(name) {
@@ -267,8 +270,9 @@ export class WeaponSystem {
   triggerUp() { this.firing = false; }
 
   startReload() {
-    if (this.current !== this.crossbow || this.reloading > 0 || this.ammo === CONFIG.crossbow.magSize) return;
-    this.reloading = CONFIG.crossbow.reloadTime;
+    if (this.current !== this.crossbow || this.reloading > 0 || this.ammo === this.magSize()) return;
+    this.reloadTotal = CONFIG.crossbow.reloadTime * (this.game.mods?.reloadMul ?? 1);
+    this.reloading = this.reloadTotal;
     this.game.audio.play('reload', { volume: 0.7 });
   }
 
@@ -304,7 +308,9 @@ export class WeaponSystem {
     let endT = tWall;
     if (hit) {
       endT = hit.t;
-      const dmg = C.damage * (hit.upper ? C.upperMult : 1);
+      const mods = this.game.mods;
+      const dmg = C.damage * (mods?.xbowDamage ?? 1) *
+        (hit.upper ? C.upperMult + (mods?.critBonus ?? 0) : 1);
       hit.enemy.damage(dmg, dir);
       game.ui.hitmarker(hit.upper);
       game.audio.playOne(['impactFlesh0', 'impactFlesh1', 'impactFlesh2', 'impactFlesh3', 'impactFlesh4'], { volume: 0.65 });
@@ -374,9 +380,9 @@ export class WeaponSystem {
     }
 
     // recharge hex
-    if (this.charges < CONFIG.hex.charges) {
+    if (this.charges < this.maxCharges()) {
       this.rechargeTimer += dt;
-      if (this.rechargeTimer >= CONFIG.hex.rechargeTime) {
+      if (this.rechargeTimer >= CONFIG.hex.rechargeTime * (this.game.mods?.hexRecharge ?? 1)) {
         this.rechargeTimer = 0;
         this.charges++;
       }
@@ -387,7 +393,7 @@ export class WeaponSystem {
       this.reloading -= dt;
       if (this.reloading <= 0) {
         this.reloading = 0;
-        this.ammo = CONFIG.crossbow.magSize;
+        this.ammo = this.magSize();
         this.game.audio.play('reload', { volume: 0.5, pitch: 1.25 });
       }
     }
@@ -415,7 +421,7 @@ export class WeaponSystem {
     const idleY = Math.sin(t * 1.7) * 0.0035;
 
     const recoilZ = this.recoil * CONFIG.crossbow.recoilKick * 4;
-    const reloadDip = this.reloading > 0 ? Math.sin(Math.min(1, 1 - this.reloading / CONFIG.crossbow.reloadTime) * Math.PI) * 0.16 : 0;
+    const reloadDip = this.reloading > 0 ? Math.sin(Math.min(1, 1 - this.reloading / (this.reloadTotal || CONFIG.crossbow.reloadTime)) * Math.PI) * 0.16 : 0;
     const switchDip = this.pending ? Math.sin(this.switchAnim * Math.PI) * 0.3
       : (this.switchAnim < 1 ? (1 - this.switchAnim) * 0.3 : 0);
 
@@ -484,8 +490,8 @@ export class WeaponSystem {
   }
 
   reset() {
-    this.ammo = CONFIG.crossbow.magSize;
-    this.charges = CONFIG.hex.charges;
+    this.ammo = this.magSize();
+    this.charges = this.maxCharges();
     this.rechargeTimer = 0;
     this.cooldown = 0;
     this.reloading = 0;

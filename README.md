@@ -53,6 +53,24 @@ node scripts/verify-assets.mjs   # all manifest assets return 200 (dev server mu
 Wave *N* spawns `4 + 3N` enemies in batches from four violet spawn gates.
 Caster ratio grows each wave. Rare cyan vials heal 25 HP.
 
+**Every 5th wave is a Warden wave**: the VESPERS WARDEN — a towering demon
+with its own HUD health bar — storms the court with an escort. Slaying it
+pays 1,200 base score and drops two guaranteed vials.
+
+## Run progression
+
+- **Litanies (perks).** After every cleared wave you choose one of three
+  random litanies — all stack: Wolf's Haste (+move speed), Steel Bite
+  (+crossbow damage), Saint's Quiver (+magazine), Deft Hands (faster reload),
+  Witch Pact (+hex charges), Catalyst (faster hex recharge), Wider Ruin
+  (+blast radius), Headsman (+crit), Leech Rune (heal on kill), Stone Heart
+  (+max HP), Last Rites (stronger vials). Builds diverge hard by wave 10.
+- **Score & combo.** Kills chain a combo multiplier (up to ×8) that decays
+  after 4 s without a kill; each archetype has a base score value. Score,
+  best wave and best kills persist in `localStorage` across sessions, along
+  with your sensitivity/volume settings. Beat your record and the death
+  screen says so.
+
 ## What was downloaded and from where
 
 All runtime assets are real downloaded files (no generated stand-ins shipped).

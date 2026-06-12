@@ -13,7 +13,9 @@ export class Player {
     this.position = new THREE.Vector3(0, 0, 6); // feet
     this.velocity = new THREE.Vector3();
     this.onGround = true;
-    this.hp = CONFIG.player.hp;
+    this.mods = null;               // set by Game; perk modifiers
+    this.maxHp = CONFIG.player.hp;
+    this.hp = this.maxHp;
     this.alive = true;
     this.sprinting = false;
     this.moveInput = new THREE.Vector2();
@@ -30,7 +32,8 @@ export class Player {
   reset() {
     this.position.set(0, 0, 6);
     this.velocity.set(0, 0, 0);
-    this.hp = CONFIG.player.hp;
+    this.maxHp = CONFIG.player.hp;
+    this.hp = this.maxHp;
     this.alive = true;
     this.onGround = true;
   }
@@ -51,7 +54,7 @@ export class Player {
   }
 
   heal(amount) {
-    this.hp = Math.min(CONFIG.player.hp, this.hp + amount);
+    this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
   knockback(dir, force) {
@@ -79,7 +82,7 @@ export class Player {
       .addScaledVector(right, strafe);
     if (wish.lengthSq() > 0) wish.normalize();
 
-    const maxSpeed = this.sprinting ? C.sprintSpeed : C.walkSpeed;
+    const maxSpeed = (this.sprinting ? C.sprintSpeed : C.walkSpeed) * (this.mods?.moveSpeed ?? 1);
     const control = this.onGround ? 1 : C.airControl;
 
     // accelerate toward wish, friction when no input

@@ -49,7 +49,14 @@ export class UI {
 
     this.topWrap = el('div', 'top-wrap', this.hud);
     this.waveText = el('div', 'wave-text', this.topWrap, '');
+    this.scoreText = el('div', 'score-text', this.topWrap, '0');
     this.killText = el('div', 'kill-text', this.topWrap, '');
+    this.bossWrap = el('div', 'boss-wrap hidden', this.hud);
+    el('div', 'boss-name', this.bossWrap, 'VESPERS WARDEN');
+    const bbar = el('div', 'boss-bar-outer', this.bossWrap);
+    this.bossBar = el('div', 'boss-bar', bbar);
+
+    this.comboText = el('div', 'combo-text hidden', this.hud, '');
 
     this.banner = el('div', 'wave-banner hidden', this.hud);
 
@@ -76,6 +83,11 @@ export class UI {
     el('label', null, musRow, 'Music');
     this.musicSlider = el('input', null, musRow);
     Object.assign(this.musicSlider, { type: 'range', min: 0, max: 1, step: 0.05, value: CONFIG.audio.musicVolume });
+
+    // --- perk choice ---
+    this.perkScreen = el('div', 'screen perk-screen hidden', this.root);
+    el('h2', 'perk-title', this.perkScreen, 'CHOOSE A LITANY');
+    this.perkCards = el('div', 'perk-cards', this.perkScreen);
 
     // --- death ---
     this.deathScreen = el('div', 'screen death-screen hidden', this.root);
@@ -111,7 +123,7 @@ export class UI {
 
   updateHud(game) {
     const player = game.player;
-    const hpFrac = player.hp / CONFIG.player.hp;
+    const hpFrac = player.hp / player.maxHp;
     this.hpBar.style.width = `${hpFrac * 100}%`;
     // gold draining to ember
     const hue = 38 * hpFrac + 8;
@@ -130,7 +142,30 @@ export class UI {
     }
 
     this.waveText.textContent = game.enemies.wave > 0 ? `WAVE ${roman(game.enemies.wave)}` : '';
+    this.scoreText.textContent = game.score.toLocaleString('en-US');
     this.killText.textContent = `${game.enemies.kills} SLAIN`;
+
+    // combo multiplier
+    const combo = game.combo;
+    if (combo.mult > 1 && combo.timer > 0) {
+      this.comboText.classList.remove('hidden');
+      if (this._lastMult !== combo.mult) {
+        this.comboText.classList.remove('pop');
+        void this.comboText.offsetWidth;
+        this.comboText.classList.add('pop');
+      }
+      this._lastMult = combo.mult;
+      this.comboText.textContent = `x${combo.mult}`;
+      this.comboText.style.opacity = String(0.4 + 0.6 * Math.min(1, combo.timer / 2));
+    } else {
+      this.comboText.classList.add('hidden');
+      this._lastMult = 1;
+    }
+
+    // boss health
+    const boss = game.enemies.boss();
+    this.bossWrap.classList.toggle('hidden', !boss);
+    if (boss) this.bossBar.style.width = `${Math.max(0, boss.hp / boss.maxHp) * 100}%`;
 
     this.ember.style.opacity = player.hp <= CONFIG.player.lowHpThreshold && player.alive
       ? String(0.45 + 0.25 * (1 - player.hp / CONFIG.player.lowHpThreshold)) : '0';
@@ -138,8 +173,10 @@ export class UI {
 
   setWeapon() {}
 
-  showWave(n) {
-    this.banner.innerHTML = `WAVE ${roman(n)}`;
+  showWave(n, isBoss = false) {
+    this.banner.innerHTML = isBoss
+      ? `WAVE ${roman(n)}<span class="banner-sub">THE WARDEN RISES</span>`
+      : `WAVE ${roman(n)}`;
     this.banner.classList.remove('hidden');
     this.banner.classList.remove('anim');
     void this.banner.offsetWidth;
@@ -177,13 +214,29 @@ export class UI {
     this._healTimer = setTimeout(() => { this.healFx.style.opacity = '0'; }, 220);
   }
 
+  showPerks(perks, onPick) {
+    this.perkCards.replaceChildren();
+    for (const perk of perks) {
+      const card = el('button', 'perk-card', this.perkCards);
+      el('div', 'perk-name', card, perk.name);
+      el('div', 'perk-desc', card, perk.desc);
+      card.addEventListener('click', () => onPick(perk));
+    }
+    this.perkScreen.classList.remove('hidden');
+  }
+
+  hidePerks() { this.perkScreen.classList.add('hidden'); }
+
   showPause() { this.pauseScreen.classList.remove('hidden'); }
   hidePause() { this.pauseScreen.classList.add('hidden'); }
 
-  showDeath(wave, kills, best) {
+  showDeath(wave, kills, score, best) {
+    const isRecord = score > 0 && score >= best.score;
     this.deathStats.innerHTML =
-      `You endured <b>${wave > 0 ? roman(wave) : '—'}</b> wave${wave === 1 ? '' : 's'} and slew <b>${kills}</b> horrors.` +
-      (best > 0 ? `<br>Session best: <b>${best}</b> slain.` : '');
+      `You endured <b>${wave > 0 ? roman(wave) : '—'}</b> wave${wave === 1 ? '' : 's'} and slew <b>${kills}</b> horrors.<br>` +
+      `Score: <b>${score.toLocaleString('en-US')}</b>` +
+      (isRecord ? ' <span class="record">— A NEW RECKONING</span>' : '') +
+      `<br>Best: <b>${best.score.toLocaleString('en-US')}</b> &middot; wave <b>${best.wave > 0 ? roman(best.wave) : '—'}</b> &middot; <b>${best.kills}</b> slain`;
     this.deathScreen.classList.remove('hidden');
     this.hud.classList.add('hidden');
   }

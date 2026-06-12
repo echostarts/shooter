@@ -4,7 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { CONFIG } from './config.js';
+import { CONFIG, defaultMods, PERKS } from './config.js';
 import { loadAll } from './assets.js';
 import { Level } from './level.js';
 import { Player } from './player.js';
@@ -72,6 +72,22 @@ class Game {
     this.showFps = false;
     this.fpsAcc = 0;
     this.fpsFrames = 0;
+
+    this.mods = defaultMods();          // per-run perk modifiers
+    this.score = 0;
+    this.combo = { chain: 0, timer: 0, mult: 1 };
+    this.choosingPerk = false;
+    this.best = this.loadJSON('gravehold.best') ?? { score: 0, wave: 0, kills: 0 };
+    this.settings = this.loadJSON('gravehold.settings') ??
+      { sens: 1, sfx: CONFIG.audio.sfxVolume, music: CONFIG.audio.musicVolume };
+  }
+
+  loadJSON(key) {
+    try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+  }
+
+  saveJSON(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* private mode */ }
   }
 
   async init() {
@@ -94,6 +110,7 @@ class Game {
     this.level = new Level(this.scene, this.renderer);
     this.particles = new ParticleSystem(this.scene);
     this.player = new Player(this.camera, this.renderer.domElement, this.level);
+    this.player.mods = this.mods;
     this.projectiles = new ProjectileSystem(this.scene, this);
     this.weapons = new WeaponSystem(this.camera, this);
     this.weapons.rig.visible = false;   // hidden during the menu orbit
@@ -123,15 +140,23 @@ class Game {
       this.composer.setSize(window.innerWidth, window.innerHeight);
     });
 
+    // restore persisted settings
+    this.player.controls.pointerSpeed = this.settings.sens;
+    this.ui.sensSlider.value = this.settings.sens;
+    this.ui.volSlider.value = this.settings.sfx;
+    this.ui.musicSlider.value = this.settings.music;
+
     this.ui.startScreen.addEventListener('click', async () => {
       if (!this.assetsReady()) return;
       await this.audio.init();
+      this.audio.setSfxVolume(this.settings.sfx);
+      this.audio.setMusicVolume(this.settings.music);
       this.audio.resume();
       this.startRun();
     });
 
     this.player.controls.addEventListener('unlock', () => {
-      if (this.playing && this.player.alive && !this.restarting) this.pause();
+      if (this.playing && this.player.alive && !this.restarting && !this.choosingPerk) this.pause();
     });
     this.player.controls.addEventListener('lock', () => {
       this.paused = false;
@@ -168,13 +193,19 @@ class Game {
     this.ui.restartBtn.addEventListener('click', () => this.restart());
     this.ui.deathRestartBtn.addEventListener('click', () => this.restart());
     this.ui.sensSlider.addEventListener('input', (e) => {
-      this.player.controls.pointerSpeed = parseFloat(e.target.value);
+      this.settings.sens = parseFloat(e.target.value);
+      this.player.controls.pointerSpeed = this.settings.sens;
+      this.saveJSON('gravehold.settings', this.settings);
     });
     this.ui.volSlider.addEventListener('input', (e) => {
-      this.audio.setSfxVolume(parseFloat(e.target.value));
+      this.settings.sfx = parseFloat(e.target.value);
+      this.audio.setSfxVolume(this.settings.sfx);
+      this.saveJSON('gravehold.settings', this.settings);
     });
     this.ui.musicSlider.addEventListener('input', (e) => {
-      this.audio.setMusicVolume(parseFloat(e.target.value));
+      this.settings.music = parseFloat(e.target.value);
+      this.audio.setMusicVolume(this.settings.music);
+      this.saveJSON('gravehold.settings', this.settings);
     });
   }
 
@@ -208,6 +239,12 @@ class Game {
     this.audio.play('uiClick', { volume: 0.4 });
     this.audio.setState('calm');
     this.audio.setPaused(false);
+    this.mods = defaultMods();
+    this.player.mods = this.mods;
+    this.score = 0;
+    this.combo = { chain: 0, timer: 0, mult: 1 };
+    this.choosingPerk = false;
+    this.ui.hidePerks();
     this.enemies.reset();
     this.projectiles.reset();
     this.particles.reset();
@@ -225,15 +262,33 @@ class Game {
 
   // ---- game-feel hooks -------------------------------------------------
   onEnemyKilled(enemy) {
+    const S = CONFIG.score;
     this.enemies.kills++;
     this.bestKills = Math.max(this.bestKills, this.enemies.kills);
-    this.hitstopTimer = CONFIG.feel.hitstop;
-    this.audio.play('enemyDie', { volume: 0.6, pitch: enemy.type === 'brute' ? 0.6 : 0.9 });
+
+    // combo chain + score
+    this.combo.chain++;
+    this.combo.timer = S.comboWindow;
+    this.combo.mult = Math.min(S.comboMax, 1 + Math.floor(this.combo.chain / S.killsPerComboStep));
+    this.score += (S[enemy.type] ?? 50) * this.combo.mult;
+
+    if (this.mods.lifeOnKill > 0) this.player.heal(this.mods.lifeOnKill);
+
+    const isBoss = enemy.type === 'boss';
+    this.hitstopTimer = isBoss ? 0.09 : CONFIG.feel.hitstop;
+    this.audio.play('enemyDie', { volume: isBoss ? 0.9 : 0.6, pitch: isBoss ? 0.45 : enemy.type === 'brute' ? 0.6 : 0.9 });
     this.particles.burst(enemy.center, {
-      count: 16, color: 0x6e1212, color2: 0x4a443e,
-      speed: 3, life: 0.6, size: 0.09, gravity: 6,
+      count: isBoss ? 48 : 16, color: 0x6e1212, color2: isBoss ? 0x8b5cf6 : 0x4a443e,
+      speed: isBoss ? 6 : 3, life: 0.7, size: isBoss ? 0.13 : 0.09, gravity: 6,
     });
-    this.enemies.maybeDrop(enemy.position);
+    if (isBoss) {
+      this.shake(0.3, 0.05);
+      this.audio.play('waveBell', { volume: 0.7, pitch: 0.45, jitter: 0 });
+      this.enemies.dropVial(enemy.position, 2.5);
+      this.enemies.dropVial(enemy.position, 2.5);
+    } else {
+      this.enemies.maybeDrop(enemy.position);
+    }
   }
 
   onPlayerDamaged(amount) {
@@ -245,14 +300,22 @@ class Game {
   onPlayerDeath() {
     this.playing = false;
     this.weapons.triggerUp();
+    this.choosingPerk = false;
+    this.ui.hidePerks();
     this.audio.setState('death');
     this.audio.play('deathBell', { volume: 0.9, pitch: 0.55, jitter: 0 });
     this.player.controls.unlock();
-    this.ui.showDeath(this.enemies.wave, this.enemies.kills, this.bestKills);
+    this.best = {
+      score: Math.max(this.best.score, this.score),
+      wave: Math.max(this.best.wave, this.enemies.wave),
+      kills: Math.max(this.best.kills, this.enemies.kills),
+    };
+    this.saveJSON('gravehold.best', this.best);
+    this.ui.showDeath(this.enemies.wave, this.enemies.kills, this.score, this.best);
   }
 
   onHexExplosion(pos) {
-    const R = CONFIG.hex.aoeRadius;
+    const R = CONFIG.hex.aoeRadius * (this.mods?.aoeRadius ?? 1);
     for (const e of this.enemies.list) {
       if (!e.alive) continue;
       const d = e.center.distanceTo(pos);
@@ -269,6 +332,28 @@ class Game {
     });
     const d = this.camera.position.distanceTo(pos);
     if (d < 14) this.shake(CONFIG.feel.shakeAoE, 0.05 * (1 - d / 14) + 0.015);
+  }
+
+  openPerkChoice() {
+    this.choosingPerk = true;
+    this.weapons.triggerUp();
+    const pool = [...PERKS];
+    const picks = [];
+    for (let i = 0; i < 3 && pool.length; i++) {
+      picks.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
+    }
+    this.ui.showPerks(picks, (perk) => this.onPerkPicked(perk));
+    this.player.controls.unlock();
+  }
+
+  onPerkPicked(perk) {
+    perk.apply(this.mods, this);
+    this.audio.play('uiClick', { volume: 0.5 });
+    this.ui.hidePerks();
+    this.choosingPerk = false;
+    this.enemies.state = 'intermission';
+    this.enemies.interTimer = 3;
+    this.player.controls.lock();
   }
 
   shake(time, mag) {
@@ -290,7 +375,7 @@ class Game {
     const dt = rawDt * (this.paused ? 0 : this.timeScale);
     const time = performance.now() / 1000;
 
-    if (this.started && !this.paused) {
+    if (this.started && !this.paused && !this.choosingPerk) {
       if (this.player.alive) this.player.update(dt);
       this.weapons.update(dt, this.mouseDX, this.mouseDY);
       this.enemies.update(dt);
@@ -298,6 +383,12 @@ class Game {
       this.level.update(dt, time, this.particles);
       this.particles.update(dt);
       this.ui.updateHud(this);
+
+      // combo decay
+      if (this.combo.timer > 0) {
+        this.combo.timer -= dt;
+        if (this.combo.timer <= 0) { this.combo.chain = 0; this.combo.mult = 1; }
+      }
 
       // music state follows the fight
       const live = this.enemies.liveCount();
@@ -329,6 +420,10 @@ class Game {
         this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.exp(-8 * rawDt));
         this.camera.updateProjectionMatrix();
       }
+    } else if (this.choosingPerk) {
+      // world stays alive behind the litany cards
+      this.level.update(rawDt, time, this.particles);
+      this.particles.update(rawDt);
     } else if (!this.started) {
       // cinematic orbit around the arena behind the start screen
       const a = time * 0.045;
@@ -338,7 +433,7 @@ class Game {
       this.particles.update(rawDt);
     }
     // keep the score and ambience ticking even on pause/death screens
-    this.audio.update(rawDt, this.player ? this.player.hp / CONFIG.player.hp : 1);
+    this.audio.update(rawDt, this.player ? this.player.hp / this.player.maxHp : 1);
     this.mouseDX = 0;
     this.mouseDY = 0;
 

@@ -71,6 +71,7 @@ class Enemy {
     this.cfg = CONFIG.enemies[type];
     this.game = game;
     this.hp = this.cfg.hp;
+    this.maxHp = this.cfg.hp;
     this.alive = true;
     this.state = 'spawn';
     this.position = new THREE.Vector3();
@@ -96,7 +97,8 @@ class Enemy {
         this.materials.push(c.material);
         // faint corruption glow — strongest on the brute, subtle elsewhere
         c.material.emissive = VIOLET.clone();
-        c.material.emissiveIntensity = type === 'brute' ? 0.045 : type === 'caster' ? 0.03 : 0.02;
+        c.material.emissiveIntensity =
+          type === 'boss' ? 0.085 : type === 'brute' ? 0.045 : type === 'caster' ? 0.03 : 0.02;
       }
     });
     game.scene.add(this.root);
@@ -160,7 +162,7 @@ class Enemy {
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;
       if (this.flashTimer <= 0) {
-        const glow = this.type === 'brute' ? 0.045 : this.type === 'caster' ? 0.03 : 0.02;
+        const glow = this.type === 'boss' ? 0.085 : this.type === 'brute' ? 0.045 : this.type === 'caster' ? 0.03 : 0.02;
         for (const m of this.materials) {
           m.emissive.copy(VIOLET);
           m.emissiveIntensity = glow;
@@ -206,6 +208,9 @@ class Enemy {
         } else if (dist < this.cfg.attackRange + 0.5) {
           player.damage(this.cfg.damage, game);
           if (this.cfg.knockback) player.knockback(toPlayer, this.cfg.knockback);
+        } else if (this.type === 'boss') {
+          // slam misses: still thud
+          game.shake(0.12, 0.03);
         }
       }
       if (this.attackTimer >= dur * 0.95) {
@@ -405,7 +410,7 @@ const _box2 = new THREE.Box3();
 const _v1 = new THREE.Vector3(); const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3(); const _v4 = new THREE.Vector3();
 
-const TYPE_MODEL = { grunt: 'grunt', caster: 'caster', brute: 'brute' };
+const TYPE_MODEL = { grunt: 'grunt', caster: 'caster', brute: 'brute', boss: 'brute' };
 
 // Wave spawning, enemy bookkeeping, pickups.
 export class EnemyManager {
@@ -429,6 +434,12 @@ export class EnemyManager {
 
   buildWave(n) {
     const W = CONFIG.waves;
+    if (n % W.bossEvery === 0) {
+      const queue = ['boss'];
+      const escort = Math.min(10, 2 + n);
+      for (let i = 0; i < escort; i++) queue.push(i % 3 === 2 ? 'caster' : 'grunt');
+      return queue;
+    }
     const total = W.baseCount + W.perWave * n;
     const casterFrac = Math.min(W.casterFracMax, W.casterFracBase + W.casterFracPerWave * n);
     const bruteFrac = n >= W.bruteFromWave ? W.bruteFrac : 0;
@@ -460,7 +471,8 @@ export class EnemyManager {
       count: 22, color: CONFIG.colors.violet, color2: 0x3b2a68,
       speed: 2.5, life: 0.7, size: 0.1, gravity: 0.5, up: 0.9,
     });
-    this.game.audio.playOne(['growl1', 'growl2', 'growl3'], { volume: 0.4, pitch: type === 'brute' ? 0.38 : 0.62 });
+    this.game.audio.playOne(['growl1', 'growl2', 'growl3'],
+      { volume: type === 'boss' ? 0.7 : 0.4, pitch: type === 'boss' ? 0.26 : type === 'brute' ? 0.38 : 0.62 });
   }
 
   liveCount() { return this.list.filter((e) => e.alive).length; }
@@ -475,8 +487,9 @@ export class EnemyManager {
         this.spawnQueue = this.buildWave(this.wave);
         this.state = 'active';
         this.batchTimer = 0;
-        game.ui.showWave(this.wave);
-        game.audio.play('waveBell', { volume: 0.8, pitch: 0.7, jitter: 0.02 });
+        const isBoss = this.wave % CONFIG.waves.bossEvery === 0;
+        game.ui.showWave(this.wave, isBoss);
+        game.audio.play('waveBell', { volume: 0.8, pitch: isBoss ? 0.5 : 0.7, jitter: 0.02 });
       }
     } else {
       if (this.spawnQueue.length > 0) {
@@ -488,9 +501,14 @@ export class EnemyManager {
           for (let i = 0; i < n; i++) this.spawnOne(this.spawnQueue.pop());
         }
       } else if (this.list.every((e) => !e.alive)) {
-        this.state = 'intermission';
-        this.interTimer = CONFIG.waves.interTime;
-        game.ui.showWaveCleared(this.wave);
+        if (game.player.alive) {
+          this.state = 'perk';
+          game.ui.showWaveCleared(this.wave);
+          game.openPerkChoice();
+        } else {
+          this.state = 'intermission';
+          this.interTimer = CONFIG.waves.interTime;
+        }
       }
     }
 
@@ -505,7 +523,7 @@ export class EnemyManager {
       p.mesh.position.y = 0.55 + Math.sin(p.age * 2.6) * 0.12;
       if (player.alive && p.mesh.position.distanceToSquared(
         _v1.set(player.position.x, 0.55, player.position.z)) < 1.3) {
-        player.heal(CONFIG.player.healAmount);
+        player.heal(CONFIG.player.healAmount + (game.mods?.vialBonus ?? 0));
         game.audio.play('pickupVial', { volume: 0.8, pitch: 1.2 });
         game.ui.healFlash();
         game.particles.burst(p.mesh.position, { count: 14, color: CONFIG.colors.cyan, speed: 2.2, life: 0.5, size: 0.07, gravity: -1 });
@@ -521,10 +539,19 @@ export class EnemyManager {
     this.dropless++;
     if (Math.random() > CONFIG.enemies.dropChance && this.dropless < CONFIG.enemies.dropPity) return;
     this.dropless = 0;
+    this.dropVial(pos);
+  }
+
+  dropVial(pos, jitter = 0) {
     const mesh = new THREE.Mesh(this.pickupGeo, this.pickupMat);
-    mesh.position.set(pos.x, 0.55, pos.z);
+    mesh.position.set(pos.x + (Math.random() - 0.5) * jitter, 0.55, pos.z + (Math.random() - 0.5) * jitter);
     this.game.scene.add(mesh);
     this.pickups.push({ mesh, age: Math.random() * 4, dead: false });
+  }
+
+  // the live boss, if any (for the HUD bar)
+  boss() {
+    return this.list.find((e) => e.type === 'boss' && e.alive) ?? null;
   }
 
   // nearest enemy hit along a hitscan ray

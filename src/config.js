@@ -63,6 +63,7 @@ export const CONFIG = {
     caster: { hp: 50,  speed: 2.6, damage: 12, attackRange: 16,  attackCooldown: 2.8, scale: 0.9,
               keepMin: 10, keepMax: 14, boltSpeed: 9.5 },
     brute:  { hp: 160, speed: 1.8, damage: 30, attackRange: 2.3, attackCooldown: 1.8, scale: 1.9,  knockback: 5.5 },
+    boss:   { hp: 1050, speed: 2.3, damage: 40, attackRange: 3.0, attackCooldown: 2.1, scale: 3.1, knockback: 9 },
     separationRadius: 1.4,
     separationForce: 6,
     whiskerLength: 2.2,
@@ -84,6 +85,17 @@ export const CONFIG = {
     casterFracPerWave: 0.05,
     casterFracMax: 0.45,
     bruteFrac: 0.14,
+    bossEvery: 5,        // every Nth wave is a Warden wave
+  },
+
+  score: {
+    grunt: 50,
+    caster: 80,
+    brute: 220,
+    boss: 1200,
+    comboWindow: 4,      // seconds to keep the chain alive
+    comboMax: 8,         // multiplier cap
+    killsPerComboStep: 2,
   },
 
   feel: {
@@ -114,3 +126,49 @@ export const CONFIG = {
     pitchJitter: 0.1,
   },
 };
+
+// Default per-run modifiers — perks mutate a copy of this.
+export function defaultMods() {
+  return {
+    moveSpeed: 1,
+    xbowDamage: 1,
+    magSize: 0,
+    reloadMul: 1,
+    hexCharges: 0,
+    hexRecharge: 1,
+    aoeRadius: 1,
+    critBonus: 0,
+    lifeOnKill: 0,
+    maxHpBonus: 0,
+    vialBonus: 0,
+  };
+}
+
+// Litanies — one of three is chosen after every cleared wave. All stack.
+export const PERKS = [
+  { id: 'haste',    name: "Wolf's Haste",   desc: 'Move 12% faster.',
+    apply: (m) => { m.moveSpeed *= 1.12; } },
+  { id: 'bite',     name: 'Steel Bite',     desc: 'Crossbow bolts deal +20% damage.',
+    apply: (m) => { m.xbowDamage *= 1.2; } },
+  { id: 'quiver',   name: "Saint's Quiver", desc: '+6 bolts per magazine.',
+    apply: (m) => { m.magSize += 6; } },
+  { id: 'hands',    name: 'Deft Hands',     desc: 'Reload 30% faster.',
+    apply: (m) => { m.reloadMul *= 0.7; } },
+  { id: 'pact',     name: 'Witch Pact',     desc: '+2 maximum hex charges.',
+    apply: (m) => { m.hexCharges += 2; } },
+  { id: 'catalyst', name: 'Catalyst',       desc: 'Hexes recharge 35% faster.',
+    apply: (m) => { m.hexRecharge *= 0.65; } },
+  { id: 'ruin',     name: 'Wider Ruin',     desc: 'Hex blast radius +30%.',
+    apply: (m) => { m.aoeRadius *= 1.3; } },
+  { id: 'headsman', name: 'Headsman',       desc: 'Upper-body hits deal +35% more.',
+    apply: (m) => { m.critBonus += 0.35; } },
+  { id: 'leech',    name: 'Leech Rune',     desc: 'Heal 2 HP on every kill.',
+    apply: (m) => { m.lifeOnKill += 2; } },
+  { id: 'heart',    name: 'Stone Heart',    desc: '+25 max HP, and mend 25 now.',
+    apply: (m, game) => {
+      m.maxHpBonus += 25;
+      if (game) { game.player.maxHp += 25; game.player.heal(25); }
+    } },
+  { id: 'rites',    name: 'Last Rites',     desc: 'Vials restore +15 more HP.',
+    apply: (m) => { m.vialBonus += 15; } },
+];

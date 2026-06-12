@@ -114,7 +114,51 @@
 
     .top-wrap { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); text-align: center; }
     .wave-text { font-size: 19px; font-weight: 700; letter-spacing: 0.3em; color: rgba(232, 179, 75, 0.85); }
+    .score-text { font-size: 15px; font-weight: 700; letter-spacing: 0.22em; color: #cfc7b8; margin-top: 2px; }
     .kill-text { font-size: 12px; letter-spacing: 0.3em; color: #8d86a8; margin-top: 3px; }
+
+    .combo-text {
+      position: absolute; left: calc(50% + 34px); top: calc(50% - 12px);
+      font-size: 24px; font-weight: 700; color: var(--gold);
+      text-shadow: 0 0 12px rgba(232, 179, 75, 0.5);
+    }
+    .combo-text.pop { animation: combopop 0.18s ease-out; }
+    @keyframes combopop { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+
+    .boss-wrap {
+      position: absolute; top: 84px; left: 50%; transform: translateX(-50%);
+      width: min(420px, 50vw); text-align: center;
+    }
+    .boss-name { font-size: 13px; letter-spacing: 0.4em; color: var(--violet); margin-bottom: 4px;
+      text-shadow: 0 0 10px rgba(139, 92, 246, 0.6); }
+    .boss-bar-outer { height: 8px; border: 1px solid rgba(139, 92, 246, 0.55); padding: 1px; background: rgba(7,10,18,0.6); }
+    .boss-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #5d3aa8, var(--violet)); transition: width 0.15s; }
+
+    .banner-sub {
+      display: block; font-size: 0.34em; letter-spacing: 0.5em; margin-top: 6px;
+      color: var(--violet); text-shadow: 0 0 18px rgba(139, 92, 246, 0.7);
+    }
+
+    /* ---- perk choice ---- */
+    .perk-screen { background: rgba(7, 10, 18, 0.72); backdrop-filter: blur(2px); }
+    .perk-title { font-family: 'MedievalSharp', serif; font-size: 44px; color: var(--gold); letter-spacing: 0.24em;
+      text-shadow: 0 0 24px rgba(232, 179, 75, 0.3); }
+    .perk-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; margin-top: 12px; padding: 0 16px; }
+    .perk-card {
+      width: 210px; min-height: 150px; padding: 22px 18px; cursor: pointer;
+      font-family: 'Cinzel', serif; text-align: center;
+      color: #cfc7b8; background: rgba(18, 14, 34, 0.85);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+    .perk-card:hover {
+      border-color: var(--gold);
+      box-shadow: 0 0 26px rgba(232, 179, 75, 0.25);
+      transform: translateY(-4px);
+    }
+    .perk-name { font-size: 19px; font-weight: 700; color: var(--gold); letter-spacing: 0.08em; margin-bottom: 12px; }
+    .perk-desc { font-size: 14px; line-height: 1.5; color: #9a92b0; }
+    .record { color: var(--cyan); letter-spacing: 0.12em; }
 
     .wave-banner {
       position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
