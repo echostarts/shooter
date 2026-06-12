@@ -146,29 +146,29 @@ export function defaultMods() {
 
 // Litanies — one of three is chosen after every cleared wave. All stack.
 export const PERKS = [
-  { id: 'haste',    name: "Wolf's Haste",   desc: 'Move 12% faster.',
+  { id: 'haste', icon: 'perk_haste.svg',    name: "Wolf's Haste",   desc: 'Move 12% faster.',
     apply: (m) => { m.moveSpeed *= 1.12; } },
-  { id: 'bite',     name: 'Steel Bite',     desc: 'Crossbow bolts deal +20% damage.',
+  { id: 'bite', icon: 'perk_bite.svg',     name: 'Steel Bite',     desc: 'Crossbow bolts deal +20% damage.',
     apply: (m) => { m.xbowDamage *= 1.2; } },
-  { id: 'quiver',   name: "Saint's Quiver", desc: '+6 bolts per magazine.',
+  { id: 'quiver', icon: 'perk_quiver.svg',   name: "Saint's Quiver", desc: '+6 bolts per magazine.',
     apply: (m) => { m.magSize += 6; } },
-  { id: 'hands',    name: 'Deft Hands',     desc: 'Reload 30% faster.',
+  { id: 'hands', icon: 'perk_hands.svg',    name: 'Deft Hands',     desc: 'Reload 30% faster.',
     apply: (m) => { m.reloadMul *= 0.7; } },
-  { id: 'pact',     name: 'Witch Pact',     desc: '+2 maximum hex charges.',
+  { id: 'pact', icon: 'perk_pact.svg',     name: 'Witch Pact',     desc: '+2 maximum hex charges.',
     apply: (m) => { m.hexCharges += 2; } },
-  { id: 'catalyst', name: 'Catalyst',       desc: 'Hexes recharge 35% faster.',
+  { id: 'catalyst', icon: 'perk_catalyst.svg', name: 'Catalyst',       desc: 'Hexes recharge 35% faster.',
     apply: (m) => { m.hexRecharge *= 0.65; } },
-  { id: 'ruin',     name: 'Wider Ruin',     desc: 'Hex blast radius +30%.',
+  { id: 'ruin', icon: 'perk_ruin.svg',     name: 'Wider Ruin',     desc: 'Hex blast radius +30%.',
     apply: (m) => { m.aoeRadius *= 1.3; } },
-  { id: 'headsman', name: 'Headsman',       desc: 'Upper-body hits deal +35% more.',
+  { id: 'headsman', icon: 'perk_headsman.svg', name: 'Headsman',       desc: 'Upper-body hits deal +35% more.',
     apply: (m) => { m.critBonus += 0.35; } },
-  { id: 'leech',    name: 'Leech Rune',     desc: 'Heal 2 HP on every kill.',
+  { id: 'leech', icon: 'perk_leech.svg',    name: 'Leech Rune',     desc: 'Heal 2 HP on every kill.',
     apply: (m) => { m.lifeOnKill += 2; } },
-  { id: 'heart',    name: 'Stone Heart',    desc: '+25 max HP, and mend 25 now.',
+  { id: 'heart', icon: 'perk_heart.svg',    name: 'Stone Heart',    desc: '+25 max HP, and mend 25 now.',
     apply: (m, game) => {
       m.maxHpBonus += 25;
       if (game) { game.player.maxHp += 25; game.player.heal(25); }
     } },
-  { id: 'rites',    name: 'Last Rites',     desc: 'Vials restore +15 more HP.',
+  { id: 'rites', icon: 'perk_rites.svg',    name: 'Last Rites',     desc: 'Vials restore +15 more HP.',
     apply: (m) => { m.vialBonus += 15; } },
 ];

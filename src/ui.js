@@ -1,5 +1,7 @@
 import { CONFIG } from './config.js';
 
+const IBASE = `${import.meta.env?.BASE_URL ?? '/'}assets/icons/`;
+
 function roman(n) {
   const table = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'],
     [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
@@ -44,8 +46,10 @@ export class UI {
     this.hpText = el('div', 'hp-text', hpWrap, '100');
 
     this.ammoWrap = el('div', 'ammo-wrap', this.hud);
+    this.weaponIcon = el('div', 'weapon-icon', this.ammoWrap);
     this.ammoBig = el('div', 'ammo-big', this.ammoWrap, '12');
     this.ammoSmall = el('div', 'ammo-small', this.ammoWrap, 'BOLTS');
+    this.setWeapon('crossbow');
 
     this.topWrap = el('div', 'top-wrap', this.hud);
     this.waveText = el('div', 'wave-text', this.topWrap, '');
@@ -171,7 +175,11 @@ export class UI {
       ? String(0.45 + 0.25 * (1 - player.hp / CONFIG.player.lowHpThreshold)) : '0';
   }
 
-  setWeapon() {}
+  setWeapon(name) {
+    const url = `url(${IBASE}${name === 'hex' ? 'weapon_hex.svg' : 'weapon_crossbow.svg'})`;
+    this.weaponIcon.style.maskImage = url;
+    this.weaponIcon.style.webkitMaskImage = url;
+  }
 
   showWave(n, isBoss = false) {
     this.banner.innerHTML = isBoss
@@ -214,12 +222,19 @@ export class UI {
     this._healTimer = setTimeout(() => { this.healFx.style.opacity = '0'; }, 220);
   }
 
-  showPerks(perks, onPick) {
+  showPerks(perks, onPick, counts = {}) {
     this.perkCards.replaceChildren();
     for (const perk of perks) {
       const card = el('button', 'perk-card', this.perkCards);
+      const ring = el('div', 'perk-ring', card);
+      const icon = el('div', 'perk-icon', ring);
+      const url = `url(${IBASE}${perk.icon})`;
+      icon.style.maskImage = url;
+      icon.style.webkitMaskImage = url;
       el('div', 'perk-name', card, perk.name);
       el('div', 'perk-desc', card, perk.desc);
+      const owned = counts[perk.id] ?? 0;
+      if (owned > 0) el('div', 'perk-owned', card, `held ${'&#10022;'.repeat(Math.min(owned, 5))}`);
       card.addEventListener('click', () => onPick(perk));
     }
     this.perkScreen.classList.remove('hidden');

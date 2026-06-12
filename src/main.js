@@ -74,6 +74,7 @@ class Game {
     this.fpsFrames = 0;
 
     this.mods = defaultMods();          // per-run perk modifiers
+    this.perkCounts = {};
     this.score = 0;
     this.combo = { chain: 0, timer: 0, mult: 1 };
     this.choosingPerk = false;
@@ -241,6 +242,7 @@ class Game {
     this.audio.setPaused(false);
     this.mods = defaultMods();
     this.player.mods = this.mods;
+    this.perkCounts = {};
     this.score = 0;
     this.combo = { chain: 0, timer: 0, mult: 1 };
     this.choosingPerk = false;
@@ -342,12 +344,13 @@ class Game {
     for (let i = 0; i < 3 && pool.length; i++) {
       picks.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
     }
-    this.ui.showPerks(picks, (perk) => this.onPerkPicked(perk));
+    this.ui.showPerks(picks, (perk) => this.onPerkPicked(perk), this.perkCounts);
     this.player.controls.unlock();
   }
 
   onPerkPicked(perk) {
     perk.apply(this.mods, this);
+    this.perkCounts[perk.id] = (this.perkCounts[perk.id] ?? 0) + 1;
     this.audio.play('uiClick', { volume: 0.5 });
     this.ui.hidePerks();
     this.choosingPerk = false;

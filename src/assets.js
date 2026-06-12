@@ -33,6 +33,23 @@ export const MANIFEST = {
   hdri: {
     night: 'hdri/dikhololo_night_2k.hdr',
   },
+  // SVG icons are used directly by the DOM (perk cards, HUD) — listed here
+  // so the verification script covers them; loadAll skips this group.
+  icons: {
+    perkHaste: 'icons/perk_haste.svg',
+    perkBite: 'icons/perk_bite.svg',
+    perkQuiver: 'icons/perk_quiver.svg',
+    perkHands: 'icons/perk_hands.svg',
+    perkPact: 'icons/perk_pact.svg',
+    perkCatalyst: 'icons/perk_catalyst.svg',
+    perkRuin: 'icons/perk_ruin.svg',
+    perkHeadsman: 'icons/perk_headsman.svg',
+    perkLeech: 'icons/perk_leech.svg',
+    perkHeart: 'icons/perk_heart.svg',
+    perkRites: 'icons/perk_rites.svg',
+    weaponCrossbow: 'icons/weapon_crossbow.svg',
+    weaponHex: 'icons/weapon_hex.svg',
+  },
   sfx: {
     shotCrossbow1: 'sfx/shot_crossbow_1.ogg',
     shotCrossbow2: 'sfx/shot_crossbow_2.ogg',

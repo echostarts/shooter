@@ -78,6 +78,26 @@ Pack pages: https://kenney.nl/assets/impact-sounds , https://kenney.nl/assets/rp
 
 Music / ambience is generated at runtime with WebAudio (no downloaded music).
 
+## UI Icons
+
+All icons from https://game-icons.net, **CC BY 3.0** (https://creativecommons.org/licenses/by/3.0/),
+downloaded as white-on-transparent SVGs (solid background removed):
+
+| Game file | Icon | Author |
+|---|---|---|
+| `icons/perk_haste.svg` | Wolf howl | Lorc |
+| `icons/perk_bite.svg`, `icons/weapon_crossbow.svg` | Crossbow | Carl Olsen |
+| `icons/perk_quiver.svg` | Quiver | Delapouite |
+| `icons/perk_hands.svg` | Snatch | Lorc |
+| `icons/perk_pact.svg` | Cauldron | Lorc |
+| `icons/perk_catalyst.svg` | Fizzing flask | Lorc |
+| `icons/perk_ruin.svg` | Burst blob | Lorc |
+| `icons/perk_headsman.svg` | Decapitation | Lorc |
+| `icons/perk_leech.svg` | Leeching worm | Lorc |
+| `icons/perk_heart.svg` | Heart tower | Lorc |
+| `icons/perk_rites.svg` | Health potion | Delapouite |
+| `icons/weapon_hex.svg` | Potion ball | Lorc |
+
 ## Fonts
 
 | Asset | Author | Source | License |
