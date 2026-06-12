@@ -62,7 +62,6 @@ All SFX by Kenney (https://kenney.nl), CC0 1.0, renamed from the original pack f
 | `sfx/hex_explode_thump.ogg` | impactGeneric_light_001.ogg | Impact Sounds |
 | `sfx/impact_flesh_0..4.ogg` | impactPunch_medium_000..004.ogg | Impact Sounds |
 | `sfx/impact_stone_0..2.ogg` | impactMining_000..002.ogg | Impact Sounds |
-| `sfx/growl_1..3.ogg` (pitched down in-game) | creak1..3.ogg | RPG Audio |
 | `sfx/enemy_hit.ogg` | impactPunch_heavy_001.ogg | Impact Sounds |
 | `sfx/enemy_die.ogg` | impactPunch_heavy_003.ogg | Impact Sounds |
 | `sfx/player_hurt_1/2.ogg` | impactSoft_heavy_001 / impactSoft_medium_003 | Impact Sounds |
