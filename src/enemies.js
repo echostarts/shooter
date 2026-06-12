@@ -189,9 +189,11 @@ class Enemy {
     toPlayer.normalize();
 
     this.growlTimer -= dt;
-    if (this.growlTimer <= 0 && dist < 16) {
+    if (this.growlTimer <= 0 && dist < 18) {
       this.growlTimer = 4 + Math.random() * 8;
-      this.game.audio.playOne(['growl1', 'growl2', 'growl3'], { volume: 0.3, pitch: this.type === 'brute' ? 0.4 : 0.6 });
+      const vol = Math.max(0, 1 - dist / 22) * 0.42;
+      const pitch = this.type === 'boss' ? 0.35 : this.type === 'brute' ? 0.5 : this.type === 'caster' ? 0.85 : 1;
+      this.game.audio.growl({ volume: vol, pitch });
     }
 
     this.attackCooldown -= dt;
@@ -458,8 +460,11 @@ export class EnemyManager {
   }
 
   spawnOne(type) {
-    const gates = this.game.level.gates;
-    const gate = gates[(Math.random() * gates.length) | 0];
+    // never pop a monster right behind the player's back
+    const pp = this.game.player.position;
+    const gates = [...this.game.level.gates]
+      .sort((a, b) => b.position.distanceToSquared(pp) - a.position.distanceToSquared(pp));
+    const gate = gates[(Math.random() * Math.min(2, gates.length)) | 0];
     const e = new Enemy(type, TYPE_MODEL[type], this.game);
     e.position.copy(gate.position);
     e.position.x += (Math.random() - 0.5) * 1.6;
@@ -471,8 +476,11 @@ export class EnemyManager {
       count: 22, color: CONFIG.colors.violet, color2: 0x3b2a68,
       speed: 2.5, life: 0.7, size: 0.1, gravity: 0.5, up: 0.9,
     });
-    this.game.audio.playOne(['growl1', 'growl2', 'growl3'],
-      { volume: type === 'boss' ? 0.7 : 0.4, pitch: type === 'boss' ? 0.26 : type === 'brute' ? 0.38 : 0.62 });
+    const spawnDist = e.position.distanceTo(pp);
+    this.game.audio.growl({
+      volume: Math.max(0.1, 1 - spawnDist / 38) * (type === 'boss' ? 0.8 : 0.4),
+      pitch: type === 'boss' ? 0.32 : type === 'brute' ? 0.48 : 0.9,
+    });
   }
 
   liveCount() { return this.list.filter((e) => e.alive).length; }

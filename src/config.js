@@ -45,6 +45,9 @@ export const CONFIG = {
     tracerFade: 0.06,
     recoilKick: 0.055,
     range: 120,
+    boltVisualSpeed: 95,   // m/s, visible projectile (damage is hitscan)
+    aimFovZoom: 24,        // FOV reduction when aiming
+    aimSensitivity: 0.55,  // mouse sens multiplier while aiming
   },
 
   hex: {

@@ -61,12 +61,11 @@ export class UI {
     this.waveText = el('div', 'wave-text', this.topWrap, '');
     this.scoreText = el('div', 'score-text', this.topWrap, '0');
     this.killText = el('div', 'kill-text', this.topWrap, '');
+    this.comboText = el('div', 'combo-text hidden', this.topWrap, '');
     this.bossWrap = el('div', 'boss-wrap hidden', this.hud);
     el('div', 'boss-name', this.bossWrap, 'VESPERS WARDEN');
     const bbar = el('div', 'boss-bar-outer', this.bossWrap);
     this.bossBar = el('div', 'boss-bar', bbar);
-
-    this.comboText = el('div', 'combo-text hidden', this.hud, '');
 
     this.banner = el('div', 'wave-banner hidden', this.hud);
 
@@ -81,6 +80,7 @@ export class UI {
     el('h2', 'subtitle', this.pauseScreen, 'RESPITE');
     this.resumeBtn = el('button', 'btn', this.pauseScreen, 'Resume');
     this.restartBtn = el('button', 'btn', this.pauseScreen, 'Restart');
+    this.exitBtn = el('button', 'btn btn-dim', this.pauseScreen, 'Leave the Court');
     const sensRow = el('div', 'slider-row', this.pauseScreen);
     el('label', null, sensRow, 'Sensitivity');
     this.sensSlider = el('input', null, sensRow);
@@ -122,6 +122,8 @@ export class UI {
   showStart() {
     this.startScreen.classList.remove('hidden');
     this.hud.classList.add('hidden');
+    this.deathScreen.classList.add('hidden');
+    this.pauseScreen.classList.add('hidden');
   }
 
   startGame() {
@@ -170,7 +172,7 @@ export class UI {
         this.comboText.classList.add('pop');
       }
       this._lastMult = combo.mult;
-      this.comboText.textContent = `x${combo.mult}`;
+      this.comboText.textContent = `COMBO \u00d7${combo.mult}`;
       this.comboText.style.opacity = String(0.4 + 0.6 * Math.min(1, combo.timer / 2));
     } else {
       this.comboText.classList.add('hidden');

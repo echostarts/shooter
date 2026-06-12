@@ -157,6 +157,7 @@ class Game {
     });
 
     this.player.controls.addEventListener('unlock', () => {
+      this.weapons.setAim(false);
       if (this.playing && this.player.alive && !this.restarting && !this.choosingPerk) this.pause();
     });
     this.player.controls.addEventListener('lock', () => {
@@ -166,17 +167,20 @@ class Game {
     });
 
     // button hover ticks
-    for (const btn of [this.ui.resumeBtn, this.ui.restartBtn, this.ui.deathRestartBtn]) {
+    for (const btn of [this.ui.resumeBtn, this.ui.restartBtn, this.ui.exitBtn, this.ui.deathRestartBtn]) {
       btn.addEventListener('mouseenter', () => this.audio.play('uiHover', { volume: 0.22 }));
     }
 
     document.addEventListener('mousedown', (e) => {
       if (!this.playing || this.paused || !this.player.controls.isLocked) return;
       if (e.button === 0) this.weapons.triggerDown();
+      if (e.button === 2) this.weapons.setAim(true);
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.weapons.triggerUp();
+      if (e.button === 2) this.weapons.setAim(false);
     });
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('mousemove', (e) => {
       if (this.player.controls.isLocked) {
         this.mouseDX += e.movementX;
@@ -192,6 +196,7 @@ class Game {
 
     this.ui.resumeBtn.addEventListener('click', () => this.resume());
     this.ui.restartBtn.addEventListener('click', () => this.restart());
+    this.ui.exitBtn.addEventListener('click', () => this.exitToMenu());
     this.ui.deathRestartBtn.addEventListener('click', () => this.restart());
     this.ui.sensSlider.addEventListener('input', (e) => {
       this.settings.sens = parseFloat(e.target.value);
@@ -261,6 +266,34 @@ class Game {
     this.ui.startGame();
     this.player.controls.lock();
     this.restarting = false;
+  }
+
+  exitToMenu() {
+    this.audio.play('uiClick', { volume: 0.4 });
+    this.enemies.reset();
+    this.projectiles.reset();
+    this.particles.reset();
+    this.weapons.reset();
+    this.player.reset();
+    this.mods = defaultMods();
+    this.player.mods = this.mods;
+    this.perkCounts = {};
+    this.ui.setPerkStrip(this.perkCounts);
+    this.score = 0;
+    this.combo = { chain: 0, timer: 0, mult: 1 };
+    this.timeScale = 1;
+    this.hitstopTimer = 0;
+    this.shakeTime = 0;
+    this.playing = false;
+    this.paused = false;
+    this.started = false;
+    this.choosingPerk = false;
+    this.weapons.rig.visible = false;
+    this.audio.setState('calm');
+    this.audio.setPaused(false);
+    this.ui.hidePause();
+    this.ui.hidePerks();
+    this.ui.showStart();
   }
 
   // ---- game-feel hooks -------------------------------------------------
@@ -434,12 +467,16 @@ class Game {
       }
       this.camera.position.y += Math.sin(time * 1.4) * 0.006;
 
-      // sprint FOV
-      const targetFov = CONFIG.player.baseFov + (this.player.sprinting ? CONFIG.player.sprintFovAdd : 0);
+      // FOV: aim zoom wins over sprint widening
+      const targetFov = this.weapons.aiming
+        ? CONFIG.player.baseFov - CONFIG.crossbow.aimFovZoom
+        : CONFIG.player.baseFov + (this.player.sprinting ? CONFIG.player.sprintFovAdd : 0);
       if (Math.abs(this.camera.fov - targetFov) > 0.01) {
-        this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.exp(-8 * rawDt));
+        this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.exp(-11 * rawDt));
         this.camera.updateProjectionMatrix();
       }
+      this.player.controls.pointerSpeed =
+        this.settings.sens * (this.weapons.aiming ? CONFIG.crossbow.aimSensitivity : 1);
     } else if (this.choosingPerk) {
       // world stays alive behind the litany cards
       this.level.update(rawDt, time, this.particles);

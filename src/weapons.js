@@ -9,6 +9,34 @@ const _ZERO_EULER = new THREE.Euler();
 const _v = new THREE.Vector3(); const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3(); const _v4 = new THREE.Vector3();
 
+// Soft radial glow with cross streaks for the muzzle flash / bolt glow.
+function makeFlashTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const rad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  rad.addColorStop(0, 'rgba(255,244,210,1)');
+  rad.addColorStop(0.22, 'rgba(255,205,100,0.85)');
+  rad.addColorStop(0.55, 'rgba(235,150,45,0.25)');
+  rad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = rad;
+  g.fillRect(0, 0, 128, 128);
+  g.globalCompositeOperation = 'lighter';
+  g.translate(64, 64);
+  for (let i = 0; i < 2; i++) {
+    g.rotate(Math.PI / 2 * i);
+    const streak = g.createLinearGradient(-64, 0, 64, 0);
+    streak.addColorStop(0, 'rgba(255,200,90,0)');
+    streak.addColorStop(0.5, 'rgba(255,230,170,0.7)');
+    streak.addColorStop(1, 'rgba(255,200,90,0)');
+    g.fillStyle = streak;
+    g.fillRect(-64, -3, 128, 6);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 // Viewmodel rig + two weapons. All motion is procedural: sway, bob,
 // sprint tilt, recoil, reload dip, camera lag, switch raise/lower.
 export class WeaponSystem {
@@ -42,26 +70,40 @@ export class WeaponSystem {
     this.swayX = 0; this.swayY = 0;
     this.lagQuat = new THREE.Quaternion();
     this.firing = false;
+    this.aiming = false;
+    this.aimBlend = 0;
 
-    // tracer pool (thin gold beams, ~60 ms fade)
-    this.tracers = [];
-    const tGeo = new THREE.BoxGeometry(0.014, 0.014, 1);
-    for (let i = 0; i < 8; i++) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: GOLD.clone().multiplyScalar(2.5),
-        transparent: true, opacity: 0, depthWrite: false,
+    this.flashTex = makeFlashTexture();
+
+    // flying bolt pool: a real projectile you can see, with a spark trail
+    this.flyBolts = [];
+    const fbShaft = new THREE.CylinderGeometry(0.012, 0.012, 0.46, 6);
+    fbShaft.rotateX(Math.PI / 2);
+    const fbHead = new THREE.ConeGeometry(0.022, 0.075, 8);
+    fbHead.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 10; i++) {
+      const group = new THREE.Group();
+      const shaft = new THREE.Mesh(fbShaft, new THREE.MeshBasicMaterial({ color: 0x6b4a26 }));
+      const head = new THREE.Mesh(fbHead, new THREE.MeshBasicMaterial({ color: GOLD.clone().multiplyScalar(2.2) }));
+      head.position.z = -0.26;
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: this.flashTex, color: GOLD.clone().multiplyScalar(1.6),
+        transparent: true, opacity: 0.85, depthWrite: false,
         blending: THREE.AdditiveBlending,
-      });
-      const m = new THREE.Mesh(tGeo, mat);
-      m.visible = false;
-      game.scene.add(m);
-      this.tracers.push({ mesh: m, life: 0 });
+      }));
+      glow.scale.setScalar(0.22);
+      glow.position.z = -0.22;
+      group.add(shaft, head, glow);
+      group.visible = false;
+      game.scene.add(group);
+      this.flyBolts.push({ group, dir: new THREE.Vector3(), remaining: 0, active: false, impact: null, end: new THREE.Vector3() });
     }
 
     // muzzle flash
     this.flashTime = 0;
     const flashMat = new THREE.SpriteMaterial({
-      color: GOLD.clone().multiplyScalar(2),
+      map: this.flashTex,
+      color: 0xfff2cc,
       transparent: true, opacity: 0, depthWrite: false, depthTest: false,
       blending: THREE.AdditiveBlending,
     });
@@ -263,6 +305,7 @@ export class WeaponSystem {
     this.pending = target;
     this.switchAnim = 0;
     this.reloading = 0;
+    this.aiming = false;
     this.game.audio.play('uiClick', { volume: 0.35, pitch: 0.8 });
   }
 
@@ -306,30 +349,77 @@ export class WeaponSystem {
     const tWall = castObstacles(origin, dir, game.level.colliders, C.range);
     const hit = game.enemies.raycast(origin, dir, tWall);
 
+    // damage is instant (hitscan); the visible bolt and impact FX fly out
     let endT = tWall;
+    let impact = tWall < C.range ? 'stone' : null;
     if (hit) {
       endT = hit.t;
+      impact = 'flesh';
       const mods = this.game.mods;
       const dmg = C.damage * (mods?.xbowDamage ?? 1) *
         (hit.upper ? C.upperMult + (mods?.critBonus ?? 0) : 1);
       hit.enemy.damage(dmg, dir);
       game.ui.hitmarker(hit.upper);
-      game.audio.playOne(['impactFlesh0', 'impactFlesh1', 'impactFlesh2', 'impactFlesh3', 'impactFlesh4'], { volume: 0.65 });
-      const p = origin.clone().addScaledVector(dir, endT);
-      game.particles.burst(p, { count: 10, color: 0x6e1212, color2: 0x55504a, speed: 3, life: 0.5, size: 0.07, gravity: 7 });
-    } else if (tWall < C.range) {
-      const p = origin.clone().addScaledVector(dir, tWall);
-      game.audio.playOne(['impactStone0', 'impactStone1', 'impactStone2'], { volume: 0.4 });
-      game.particles.burst(p, { count: 7, color: CONFIG.colors.gold, color2: 0xfff0c8, speed: 3.5, life: 0.35, size: 0.05, gravity: 8 });
     }
 
-    // tracer from muzzle to impact
     const mz = new THREE.Vector3();
     this.crossbow.muzzle.getWorldPosition(mz);
     const end = origin.clone().addScaledVector(dir, Math.min(endT, C.range));
-    this.spawnTracer(mz, end);
+    this.spawnFlyBolt(mz, end, impact);
 
     if (this.ammo === 0) this.startReload();
+  }
+
+  spawnFlyBolt(from, to, impact) {
+    const b = this.flyBolts.find((x) => !x.active) ?? this.flyBolts[0];
+    b.active = true;
+    b.group.visible = true;
+    b.group.position.copy(from);
+    b.group.lookAt(to);
+    b.dir.copy(to).sub(from);
+    b.remaining = b.dir.length();
+    b.dir.normalize();
+    b.end.copy(to);
+    b.impact = impact;
+  }
+
+  updateFlyBolts(dt) {
+    const game = this.game;
+    for (const b of this.flyBolts) {
+      if (!b.active) continue;
+      const step = CONFIG.crossbow.boltVisualSpeed * dt;
+      b.group.position.addScaledVector(b.dir, Math.min(step, b.remaining));
+      b.remaining -= step;
+      // glittering trail behind the fletching
+      for (let i = 0; i < 2; i++) {
+        const back = 0.2 + Math.random() * 0.5;
+        game.particles.spawn({
+          x: b.group.position.x - b.dir.x * back + (Math.random() - 0.5) * 0.04,
+          y: b.group.position.y - b.dir.y * back + (Math.random() - 0.5) * 0.04,
+          z: b.group.position.z - b.dir.z * back + (Math.random() - 0.5) * 0.04,
+          vx: 0, vy: 0.12, vz: 0,
+          r: 1, g: 0.78, b: 0.36,
+          life: 0.22 + Math.random() * 0.16,
+          size: 0.045 + Math.random() * 0.03,
+          gravity: 0, drag: 2.5,
+        });
+      }
+      if (b.remaining <= 0) {
+        b.active = false;
+        b.group.visible = false;
+        if (b.impact === 'flesh') {
+          game.audio.playOne(['impactFlesh0', 'impactFlesh1', 'impactFlesh2', 'impactFlesh3', 'impactFlesh4'], { volume: 0.65 });
+          game.particles.burst(b.end, { count: 10, color: 0x6e1212, color2: 0x55504a, speed: 3, life: 0.5, size: 0.07, gravity: 7 });
+        } else if (b.impact === 'stone') {
+          game.audio.playOne(['impactStone0', 'impactStone1', 'impactStone2'], { volume: 0.4 });
+          game.particles.burst(b.end, { count: 7, color: CONFIG.colors.gold, color2: 0xfff0c8, speed: 3.5, life: 0.35, size: 0.05, gravity: 8 });
+        }
+      }
+    }
+  }
+
+  setAim(v) {
+    this.aiming = v && this.current === this.crossbow;
   }
 
   fireHex() {
@@ -350,18 +440,6 @@ export class WeaponSystem {
     this.camera.getWorldDirection(dir);
     dir.y += 0.03; dir.normalize();
     this.game.projectiles.fireOrb(origin, dir);
-  }
-
-  spawnTracer(from, to) {
-    const t = this.tracers.find((x) => x.life <= 0) ?? this.tracers[0];
-    t.life = CONFIG.crossbow.tracerFade;
-    const mesh = t.mesh;
-    mesh.visible = true;
-    const len = from.distanceTo(to);
-    mesh.scale.set(1, 1, len);
-    mesh.position.copy(from).add(to).multiplyScalar(0.5);
-    mesh.lookAt(to);
-    mesh.material.opacity = 0.9;
   }
 
   update(dt, mouseDX, mouseDY) {
@@ -433,11 +511,22 @@ export class WeaponSystem {
       w.basePos.y + this.swayY + bobY + idleY - reloadDip - switchDip,
       w.basePos.z + recoilZ * 0.06,
     );
+    // aim-down-sights blend: weapon slides to centre, motion dampens
+    this.aimBlend += ((this.aiming ? 1 : 0) - this.aimBlend) * Math.min(1, 12 * dt);
+    const ab = w === this.crossbow ? this.aimBlend : 0;
+    if (ab > 0.001) {
+      const p = w.root.position;
+      p.x = THREE.MathUtils.lerp(p.x, this.swayX * 0.3, ab);
+      p.y = THREE.MathUtils.lerp(p.y, -0.085 + this.swayY * 0.3 + idleY * 0.5 - reloadDip - switchDip, ab);
+      p.z = THREE.MathUtils.lerp(p.z, -0.52 + recoilZ * 0.06, ab);
+    }
+
     const br = w.baseRot ?? _ZERO_EULER;
+    const rotDamp = 1 - ab * 0.85;
     w.root.rotation.set(
-      br.x + this.recoil * -CONFIG.crossbow.recoilKick * 3 + this.swayY * 0.6,
-      br.y + this.swayX * 0.6,
-      br.z + (player.sprinting ? -0.12 : 0) + this.swayX * 0.4,
+      (br.x + this.recoil * -CONFIG.crossbow.recoilKick * 3 + this.swayY * 0.6) * rotDamp,
+      (br.y + this.swayX * 0.6) * rotDamp,
+      (br.z + (player.sprinting ? -0.12 : 0) + this.swayX * 0.4) * rotDamp,
     );
 
     // crossbow string recock + bolt visibility
@@ -483,18 +572,15 @@ export class WeaponSystem {
       this.flashLight.intensity = 0;
     }
 
-    // tracers fade
-    for (const tr of this.tracers) {
-      if (tr.life <= 0) continue;
-      tr.life -= dt;
-      tr.mesh.material.opacity = Math.max(0, tr.life / CONFIG.crossbow.tracerFade) * 0.9;
-      if (tr.life <= 0) tr.mesh.visible = false;
-    }
+    this.updateFlyBolts(dt);
   }
 
   reset() {
     this.ammo = this.magSize();
     this.charges = this.maxCharges();
+    this.aiming = false;
+    this.aimBlend = 0;
+    for (const b of this.flyBolts) { b.active = false; b.group.visible = false; }
     this.rechargeTimer = 0;
     this.cooldown = 0;
     this.reloading = 0;

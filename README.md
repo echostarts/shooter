@@ -30,9 +30,10 @@ node scripts/verify-assets.mjs   # all manifest assets return 200 (dev server mu
 | `Shift` | Sprint (forward only, +FOV) |
 | `Space` | Jump |
 | `LMB` | Fire |
+| `RMB` (hold) | Aim the crossbow (zoom, steadier hands) |
 | `R` | Reload crossbow |
 | `1` / `2` / mouse wheel | Switch weapon |
-| `Esc` | Pause (resume / restart / sensitivity / volume) |
+| `Esc` | Pause (resume / restart / leave to menu / sensitivity / volume) |
 | `F` | FPS counter |
 
 ## Weapons
@@ -139,8 +140,8 @@ src/ui.js           HUD, screens, banners (DOM)
 - Monster *geometries* are shared between instances by design (cloned via
   SkeletonUtils); per-instance materials, skeletons and mixers are disposed on
   death. `renderer.info` was verified stable across kills and restarts.
-- Kenney packs have no monster voices: growls are `creak1–3.ogg` pitched down,
-  which reads surprisingly well.
+- Kenney packs have no monster voices: growls are synthesized in WebAudio
+  (distorted saw with pitch wobble + breath noise), attenuated by distance.
 - Headless CI screenshots render via SwiftShader at ~1 fps; on a real GPU the
   scene is a single 60×60 arena with one shadow light, ≤24 skinned enemies,
   pooled particles/projectiles and capped pixel ratio (1.6) — built to hold

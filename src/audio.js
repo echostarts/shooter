@@ -59,6 +59,60 @@ export class AudioSystem {
     this.play(keys[(Math.random() * keys.length) | 0], opts);
   }
 
+  // Synthesized beast growl: distorted saw with pitch wobble + breath noise.
+  growl({ volume = 0.4, pitch = 1 } = {}) {
+    if (!this.ctx || volume <= 0.01) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const dur = 0.45 + Math.random() * 0.3;
+    const f0 = 72 * pitch * (0.9 + Math.random() * 0.2);
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(f0 * 1.3, t);
+    osc.frequency.exponentialRampToValueAtTime(f0 * 0.78, t + dur);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 9 + Math.random() * 5;
+    const lfoG = ctx.createGain();
+    lfoG.gain.value = f0 * 0.2;
+    lfo.connect(lfoG).connect(osc.frequency);
+
+    if (!this._distCurve) {
+      const n = 256;
+      const c = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;
+        c[i] = Math.tanh(x * 3.2);
+      }
+      this._distCurve = c;
+    }
+    const ws = ctx.createWaveShaper();
+    ws.curve = this._distCurve;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 430;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(volume, t + 0.07);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(ws).connect(lp).connect(g).connect(this.sfxGain);
+
+    const n = ctx.createBufferSource();
+    n.buffer = this.noiseBuf;
+    n.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 260;
+    bp.Q.value = 0.8;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(volume * 0.4, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    n.connect(bp).connect(ng).connect(this.sfxGain);
+
+    osc.start(t); lfo.start(t); n.start(t, Math.random() * 2);
+    osc.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); n.stop(t + dur + 0.05);
+  }
+
   // ---- procedural ambience -------------------------------------------
   startAmbience() {
     const ctx = this.ctx;
