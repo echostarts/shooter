@@ -96,6 +96,7 @@ class Game {
     this.player = new Player(this.camera, this.renderer.domElement, this.level);
     this.projectiles = new ProjectileSystem(this.scene, this);
     this.weapons = new WeaponSystem(this.camera, this);
+    this.weapons.rig.visible = false;   // hidden during the menu orbit
     this.enemies = new EnemyManager(this);
 
     // post stack
@@ -134,8 +135,14 @@ class Game {
     });
     this.player.controls.addEventListener('lock', () => {
       this.paused = false;
+      this.audio.setPaused(false);
       this.ui.hidePause();
     });
+
+    // button hover ticks
+    for (const btn of [this.ui.resumeBtn, this.ui.restartBtn, this.ui.deathRestartBtn]) {
+      btn.addEventListener('mouseenter', () => this.audio.play('uiHover', { volume: 0.22 }));
+    }
 
     document.addEventListener('mousedown', (e) => {
       if (!this.playing || this.paused || !this.player.controls.isLocked) return;
@@ -164,9 +171,10 @@ class Game {
       this.player.controls.pointerSpeed = parseFloat(e.target.value);
     });
     this.ui.volSlider.addEventListener('input', (e) => {
-      const v = parseFloat(e.target.value);
-      this.audio.setSfxVolume(v);
-      this.audio.setMusicVolume(v * 0.6);
+      this.audio.setSfxVolume(parseFloat(e.target.value));
+    });
+    this.ui.musicSlider.addEventListener('input', (e) => {
+      this.audio.setMusicVolume(parseFloat(e.target.value));
     });
   }
 
@@ -176,6 +184,8 @@ class Game {
     this.started = true;
     this.playing = true;
     this.paused = false;
+    this.camera.rotation.set(0, 0, 0);  // leave the menu orbit pose
+    this.weapons.rig.visible = true;
     this.ui.startGame();
     this.player.controls.lock();
     this.audio.play('uiClick', { volume: 0.4 });
@@ -183,17 +193,21 @@ class Game {
 
   pause() {
     this.paused = true;
+    this.audio.setPaused(true);
     this.ui.showPause();
   }
 
   resume() {
     this.audio.play('uiClick', { volume: 0.4 });
+    this.audio.setPaused(false);
     this.player.controls.lock();
   }
 
   restart() {
     this.restarting = true;
     this.audio.play('uiClick', { volume: 0.4 });
+    this.audio.setState('calm');
+    this.audio.setPaused(false);
     this.enemies.reset();
     this.projectiles.reset();
     this.particles.reset();
@@ -231,6 +245,7 @@ class Game {
   onPlayerDeath() {
     this.playing = false;
     this.weapons.triggerUp();
+    this.audio.setState('death');
     this.audio.play('deathBell', { volume: 0.9, pitch: 0.55, jitter: 0 });
     this.player.controls.unlock();
     this.ui.showDeath(this.enemies.wave, this.enemies.kills, this.bestKills);
@@ -282,8 +297,12 @@ class Game {
       this.projectiles.update(dt);
       this.level.update(dt, time, this.particles);
       this.particles.update(dt);
-      this.audio.update(rawDt, this.player.hp / CONFIG.player.hp);
       this.ui.updateHud(this);
+
+      // music state follows the fight
+      const live = this.enemies.liveCount();
+      this.audio.setState(!this.player.alive ? 'death' : live > 0 ? 'combat' : 'calm');
+      this.audio.setIntensity(0.3 + this.enemies.wave * 0.055 + live * 0.018);
 
       // footsteps keyed to the bob cycle
       const stepPhase = Math.floor(this.player.bobPhase / Math.PI);
@@ -310,7 +329,16 @@ class Game {
         this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.exp(-8 * rawDt));
         this.camera.updateProjectionMatrix();
       }
+    } else if (!this.started) {
+      // cinematic orbit around the arena behind the start screen
+      const a = time * 0.045;
+      this.camera.position.set(Math.cos(a) * 17, 6.2 + Math.sin(time * 0.3) * 0.4, Math.sin(a) * 17);
+      this.camera.lookAt(0, 1.2, 0);
+      this.level.update(rawDt, time, this.particles);
+      this.particles.update(rawDt);
     }
+    // keep the score and ambience ticking even on pause/death screens
+    this.audio.update(rawDt, this.player ? this.player.hp / CONFIG.player.hp : 1);
     this.mouseDX = 0;
     this.mouseDY = 0;
 

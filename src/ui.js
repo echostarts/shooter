@@ -69,9 +69,13 @@ export class UI {
     this.sensSlider = el('input', null, sensRow);
     Object.assign(this.sensSlider, { type: 'range', min: 0.2, max: 2.5, step: 0.05, value: 1 });
     const volRow = el('div', 'slider-row', this.pauseScreen);
-    el('label', null, volRow, 'Volume');
+    el('label', null, volRow, 'Sound');
     this.volSlider = el('input', null, volRow);
     Object.assign(this.volSlider, { type: 'range', min: 0, max: 1, step: 0.05, value: CONFIG.audio.sfxVolume });
+    const musRow = el('div', 'slider-row', this.pauseScreen);
+    el('label', null, musRow, 'Music');
+    this.musicSlider = el('input', null, musRow);
+    Object.assign(this.musicSlider, { type: 'range', min: 0, max: 1, step: 0.05, value: CONFIG.audio.musicVolume });
 
     // --- death ---
     this.deathScreen = el('div', 'screen death-screen hidden', this.root);

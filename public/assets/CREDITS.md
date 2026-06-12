@@ -67,6 +67,7 @@ All SFX by Kenney (https://kenney.nl), CC0 1.0, renamed from the original pack f
 | `sfx/enemy_die.ogg` | impactPunch_heavy_003.ogg | Impact Sounds |
 | `sfx/player_hurt_1/2.ogg` | impactSoft_heavy_001 / impactSoft_medium_003 | Impact Sounds |
 | `sfx/ui_click.ogg` | click1.ogg | UI Audio |
+| `sfx/ui_hover.ogg` | rollover2.ogg | UI Audio |
 | `sfx/wave_bell.ogg` | impactBell_heavy_000.ogg | Impact Sounds |
 | `sfx/death_bell.ogg` | impactBell_heavy_004.ogg | Impact Sounds |
 | `sfx/pickup_vial.ogg` | handleCoins.ogg | RPG Audio |

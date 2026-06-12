@@ -57,6 +57,7 @@ export const MANIFEST = {
     playerHurt1: 'sfx/player_hurt_1.ogg',
     playerHurt2: 'sfx/player_hurt_2.ogg',
     uiClick: 'sfx/ui_click.ogg',
+    uiHover: 'sfx/ui_hover.ogg',
     waveBell: 'sfx/wave_bell.ogg',
     deathBell: 'sfx/death_bell.ogg',
     pickupVial: 'sfx/pickup_vial.ogg',
