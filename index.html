@@ -200,6 +200,70 @@
       mask-size: contain; mask-repeat: no-repeat; mask-position: center;
       -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
     }
+    .weapon-icon.ping { animation: iconping 0.45s ease-out; }
+    @keyframes iconping {
+      0% { transform: scale(1.5); background: #fff1c9; filter: drop-shadow(0 0 8px var(--gold)); }
+      100% { transform: scale(1); background: rgba(232, 179, 75, 0.85); }
+    }
+
+    /* owned litanies strip */
+    .perk-strip {
+      position: absolute; left: 28px; bottom: 64px;
+      display: flex; gap: 10px; align-items: flex-end;
+    }
+    .perk-strip-item { position: relative; }
+    .perk-strip-icon {
+      width: 22px; height: 22px;
+      background: rgba(232, 179, 75, 0.6);
+      mask-size: contain; mask-repeat: no-repeat; mask-position: center;
+      -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+    }
+    .perk-strip-count {
+      position: absolute; right: -7px; bottom: -4px;
+      font-size: 10px; font-weight: 700; color: var(--gold);
+      text-shadow: 0 0 4px #000;
+    }
+
+    /* reload progress under the crosshair */
+    .reload-wrap {
+      position: absolute; left: -22px; top: 16px; width: 44px; height: 3px;
+      background: rgba(232, 179, 75, 0.18);
+    }
+    .reload-bar { height: 100%; width: 0%; background: rgba(232, 179, 75, 0.85); }
+
+    /* crosshair kick on fire */
+    .crosshair.kick .tick { animation: tickkick 0.16s ease-out; }
+    @keyframes tickkick {
+      0% { transform: translate(var(--kx, 0), var(--ky, 0)); }
+      30% { transform: translate(calc(var(--kx, 0) * 1.0), calc(var(--ky, 0) * 1.0)) scale(1); }
+      100% { transform: none; }
+    }
+    .crosshair.kick .tick-t { --ky: -4px; }
+    .crosshair.kick .tick-b { --ky: 4px; }
+    .crosshair.kick .tick-l { --kx: -4px; }
+    .crosshair.kick .tick-r { --kx: 4px; }
+
+    /* damage direction arc */
+    .dmg-dir {
+      position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+      opacity: 0; pointer-events: none;
+    }
+    .dmg-dir-arc {
+      position: absolute; left: -34px; top: -86px; width: 68px; height: 30px;
+      border-top: 4px solid rgba(220, 50, 35, 0.9);
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      filter: drop-shadow(0 0 8px rgba(220, 50, 35, 0.6));
+    }
+    .dmg-dir.show { animation: dmgdir 0.7s ease-out forwards; }
+    @keyframes dmgdir { 0% { opacity: 1; } 70% { opacity: 0.85; } 100% { opacity: 0; } }
+
+    .banner-skull {
+      display: block; width: 0.62em; height: 0.62em; margin: 0 auto 4px;
+      background: var(--violet);
+      mask-size: contain; mask-repeat: no-repeat; mask-position: center;
+      -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+      filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.8));
+    }
     .record { color: var(--cyan); letter-spacing: 0.12em; }
 
     .wave-banner {

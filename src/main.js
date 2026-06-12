@@ -243,6 +243,7 @@ class Game {
     this.mods = defaultMods();
     this.player.mods = this.mods;
     this.perkCounts = {};
+    this.ui.setPerkStrip(this.perkCounts);
     this.score = 0;
     this.combo = { chain: 0, timer: 0, mult: 1 };
     this.choosingPerk = false;
@@ -293,10 +294,25 @@ class Game {
     }
   }
 
-  onPlayerDamaged(amount) {
+  onPlayerDamaged(amount, sourcePos) {
     this.ui.damageFlash(amount / CONFIG.player.hp);
     this.shake(CONFIG.feel.shakeDamage, 0.04 + amount * 0.002);
     this.audio.playOne(['playerHurt1', 'playerHurt2'], { volume: 0.7 });
+    if (sourcePos) {
+      const f = new THREE.Vector3();
+      this.camera.getWorldDirection(f);
+      const dx = sourcePos.x - this.player.position.x;
+      const dz = sourcePos.z - this.player.position.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const crossY = f.z * (dx / len) - f.x * (dz / len);
+      const dot = f.x * (dx / len) + f.z * (dz / len);
+      this.ui.showDamageDir(Math.atan2(-crossY, dot) * 180 / Math.PI);
+    }
+  }
+
+  onHexReady() {
+    this.audio.play('hexCast', { volume: 0.16, pitch: 1.6, jitter: 0.04 });
+    if (this.weapons.current.name === 'hex') this.ui.pingWeaponIcon();
   }
 
   onPlayerDeath() {
@@ -351,6 +367,7 @@ class Game {
   onPerkPicked(perk) {
     perk.apply(this.mods, this);
     this.perkCounts[perk.id] = (this.perkCounts[perk.id] ?? 0) + 1;
+    this.ui.setPerkStrip(this.perkCounts);
     this.audio.play('uiClick', { volume: 0.5 });
     this.ui.hidePerks();
     this.choosingPerk = false;

@@ -42,10 +42,10 @@ export class Player {
     return this.position.y + CONFIG.player.eyeHeight;
   }
 
-  damage(amount, game) {
+  damage(amount, game, sourcePos) {
     if (!this.alive) return;
     this.hp -= amount;
-    game.onPlayerDamaged(amount);
+    game.onPlayerDamaged(amount, sourcePos);
     if (this.hp <= 0) {
       this.hp = 0;
       this.alive = false;

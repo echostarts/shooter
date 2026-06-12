@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, PERKS } from './config.js';
 
 const IBASE = `${import.meta.env?.BASE_URL ?? '/'}assets/icons/`;
 
@@ -40,6 +40,12 @@ export class UI {
     el('div', 'dot', this.crosshair);
     this.hitmark = el('div', 'hitmarker', this.crosshair);
     for (const d of ['a', 'b', 'c', 'd']) el('div', `hm hm-${d}`, this.hitmark);
+    this.reloadBarWrap = el('div', 'reload-wrap hidden', this.crosshair);
+    this.reloadBar = el('div', 'reload-bar', this.reloadBarWrap);
+    this.dmgDir = el('div', 'dmg-dir', this.hud);
+    el('div', 'dmg-dir-arc', this.dmgDir);
+
+    this.perkStrip = el('div', 'perk-strip', this.hud);
 
     const hpWrap = el('div', 'hp-wrap', this.hud);
     this.hpBar = el('div', 'hp-bar', hpWrap);
@@ -135,6 +141,11 @@ export class UI {
     this.hpText.textContent = Math.ceil(player.hp);
 
     const w = game.weapons;
+    const reloading = w.current.name === 'crossbow' && w.reloading > 0;
+    this.reloadBarWrap.classList.toggle('hidden', !reloading);
+    if (reloading) {
+      this.reloadBar.style.width = `${(1 - w.reloading / (w.reloadTotal || 1)) * 100}%`;
+    }
     if (w.current.name === 'crossbow') {
       this.ammoBig.textContent = w.reloading > 0 ? '—' : w.ammo;
       this.ammoSmall.textContent = 'BOLTS';
@@ -175,6 +186,42 @@ export class UI {
       ? String(0.45 + 0.25 * (1 - player.hp / CONFIG.player.lowHpThreshold)) : '0';
   }
 
+  // strip of owned litany icons with stack pips
+  setPerkStrip(counts) {
+    this.perkStrip.replaceChildren();
+    for (const perk of PERKS) {
+      const n = counts[perk.id] ?? 0;
+      if (!n) continue;
+      const item = el('div', 'perk-strip-item', this.perkStrip);
+      item.title = `${perk.name}${n > 1 ? ` ×${n}` : ''}`;
+      const icon = el('div', 'perk-strip-icon', item);
+      const url = `url(${IBASE}${perk.icon})`;
+      icon.style.maskImage = url;
+      icon.style.webkitMaskImage = url;
+      if (n > 1) el('div', 'perk-strip-count', item, `×${n}`);
+    }
+  }
+
+  // red arc pointing toward the damage source (deg: 0 = ahead, cw)
+  showDamageDir(deg) {
+    this.dmgDir.style.transform = `rotate(${deg}deg)`;
+    this.dmgDir.classList.remove('show');
+    void this.dmgDir.offsetWidth;
+    this.dmgDir.classList.add('show');
+  }
+
+  crosshairKick() {
+    this.crosshair.classList.remove('kick');
+    void this.crosshair.offsetWidth;
+    this.crosshair.classList.add('kick');
+  }
+
+  pingWeaponIcon() {
+    this.weaponIcon.classList.remove('ping');
+    void this.weaponIcon.offsetWidth;
+    this.weaponIcon.classList.add('ping');
+  }
+
   setWeapon(name) {
     const url = `url(${IBASE}${name === 'hex' ? 'weapon_hex.svg' : 'weapon_crossbow.svg'})`;
     this.weaponIcon.style.maskImage = url;
@@ -183,7 +230,8 @@ export class UI {
 
   showWave(n, isBoss = false) {
     this.banner.innerHTML = isBoss
-      ? `WAVE ${roman(n)}<span class="banner-sub">THE WARDEN RISES</span>`
+      ? `<span class="banner-skull" style="mask-image:url(${IBASE}boss_skull.svg);-webkit-mask-image:url(${IBASE}boss_skull.svg)"></span>` +
+        `WAVE ${roman(n)}<span class="banner-sub">THE WARDEN RISES</span>`
       : `WAVE ${roman(n)}`;
     this.banner.classList.remove('hidden');
     this.banner.classList.remove('anim');

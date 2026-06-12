@@ -92,11 +92,14 @@ Full per-file table with authors and licenses: [`public/assets/CREDITS.md`](publ
   randomized ±10% on every play.
 - **Fonts** — Cinzel + MedievalSharp (SIL OFL), bundled locally.
 - **Music/ambience** — none downloaded; generated at runtime with WebAudio:
-  a 55 Hz drone + filtered wind + sparse low bell as the ambient bed, an
-  A-minor combat layer (bass ostinato, war drum, hat ticks) that fades in
-  while enemies are alive and intensifies with each wave, sombre pad swells
-  in the lulls, a low lament sting on death, music ducking while paused,
-  and a low-HP heartbeat.
+  a 55 Hz drone + filtered wind + sparse low bell as the ambient bed, and a
+  full procedural score running through a synthetic **cathedral reverb**
+  (ConvolverNode, ~2.6 s impulse): an A-minor combat layer with two
+  alternating bass ostinato sections, war drums with section-end fills, a
+  brooding harmonic-minor lead motif in call-and-answer phrases, minor chord
+  stabs at high intensity, music-box chimes and sombre pad swells in the
+  lulls, a low lament sting on death, ducking while paused, and a low-HP
+  heartbeat. Intensity scales with wave number and live enemies.
 
 ## Tuning knobs
 

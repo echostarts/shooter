@@ -144,7 +144,7 @@ export class ProjectileSystem {
       const py = Math.min(Math.max(p.y, pl.position.y + 0.2), pl.eye + 0.1);
       const dy = p.y - py;
       if (dx * dx + dz * dz + dy * dy < 0.55 ** 2 && pl.alive) {
-        pl.damage(CONFIG.enemies.caster.damage, game);
+        pl.damage(CONFIG.enemies.caster.damage, game, p);
         b.active = false; b.mesh.visible = false;
         continue;
       }

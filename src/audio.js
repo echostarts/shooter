@@ -109,23 +109,56 @@ export class AudioSystem {
   // sombre pad swells in the lulls, low sting on death.
   startMusic() {
     const ctx = this.ctx;
+
+    // cathedral reverb: synthetic stereo impulse, ~2.6 s decay
+    const irLen = (ctx.sampleRate * 2.6) | 0;
+    const ir = ctx.createBuffer(2, irLen, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < irLen; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.4);
+      }
+    }
+    this.reverb = ctx.createConvolver();
+    this.reverb.buffer = ir;
+    const revGain = ctx.createGain();
+    revGain.gain.value = 0.55;
+    this.reverb.connect(revGain).connect(this.musicGain);
+
     this.combatBus = ctx.createGain();
     this.combatBus.gain.value = 0;
     const combatLp = ctx.createBiquadFilter();
     combatLp.type = 'lowpass';
     combatLp.frequency.value = 1400;
     this.combatBus.connect(combatLp).connect(this.musicGain);
+    // a touch of the combat layer into the hall
+    const combatSend = ctx.createGain();
+    combatSend.gain.value = 0.25;
+    combatLp.connect(combatSend).connect(this.reverb);
 
     this.padBus = ctx.createGain();
     this.padBus.gain.value = 0.9;
     this.padBus.connect(this.musicGain);
+    const padSend = ctx.createGain();
+    padSend.gain.value = 0.7;
+    this.padBus.connect(padSend).connect(this.reverb);
+
+    // melodic layer (lead chimes) — mostly wet, sits "in the cathedral"
+    this.leadBus = ctx.createGain();
+    this.leadBus.gain.value = 0;
+    this.leadBus.connect(this.musicGain);
+    const leadSend = ctx.createGain();
+    leadSend.gain.value = 1.1;
+    this.leadBus.connect(leadSend).connect(this.reverb);
 
     this.stepDur = 60 / 96 / 4;          // 16ths at 96 BPM
     this.nextStep = ctx.currentTime + 0.2;
     this.step = 0;
+    this.section = 0;                    // increments every 2 bars
     this.state = 'calm';                 // calm | combat | death
     this.intensity = 0.4;
     this.padTimer = 3;
+    this.chimeTimer = 4;
   }
 
   setState(s) {
@@ -146,16 +179,82 @@ export class AudioSystem {
     this.duckGain.gain.setTargetAtTime(p ? 0.18 : 1, t, 0.25);
   }
 
-  // 2-bar (32-step) pattern; intensity opens the filter and adds layers
+  // 2-bar (32-step) pattern; intensity opens the filter and adds layers.
+  // Sections alternate bass roots (Am / Dm) and lead phrases call-and-answer.
   scheduleStep(step, t) {
     const I = this.intensity;
-    const BASS = { 0: 55, 3: 55, 6: 65.41, 8: 55, 11: 49, 14: 55, 16: 55, 19: 55, 22: 73.42, 24: 55, 27: 49, 30: 41.2 };
+    const odd = this.section % 2 === 1;
+    const BASS_A = { 0: 55, 3: 55, 6: 65.41, 8: 55, 11: 49, 14: 55, 16: 55, 19: 55, 22: 73.42, 24: 55, 27: 49, 30: 41.2 };
+    const BASS_B = { 0: 73.42, 3: 73.42, 6: 87.31, 8: 73.42, 11: 65.41, 14: 73.42, 16: 55, 19: 55, 22: 65.41, 24: 55, 27: 51.91, 30: 55 };
+    const BASS = odd ? BASS_B : BASS_A;
     if (BASS[step] !== undefined) {
       const accent = step % 8 === 0 ? 1 : 0.72;
       this.pluck(BASS[step], t, 0.24 * accent * (0.6 + I * 0.4), 140 + I * 620);
     }
+
     if (step % 8 === 0) this.warDrum(t, step % 16 === 0 ? 0.5 : 0.3);
+    // drum fill rolling into the next section
+    if (I > 0.5 && odd && step >= 29) this.warDrum(t, 0.14 + (step - 29) * 0.05);
     if (I > 0.55 && step % 4 === 2) this.tick(t, 0.025 + (I - 0.55) * 0.05);
+
+    // brooding lead motif in A harmonic minor (call on even sections, answer on odd)
+    if (I > 0.35) {
+      const LEAD_A = { 0: 220, 4: 261.63, 8: 329.63, 12: 293.66, 14: 261.63, 16: 246.94, 20: 207.65, 24: 220 };
+      const LEAD_B = { 0: 440, 6: 415.3, 12: 349.23, 16: 329.63, 22: 293.66, 26: 261.63 };
+      const LEAD = odd ? LEAD_B : LEAD_A;
+      if (LEAD[step] !== undefined) {
+        this.chime(LEAD[step], t, 0.14 * (0.5 + I * 0.5), this.leadBus);
+      }
+    }
+
+    // minor chord stab at the bar line when the fight runs hot
+    if (I > 0.55 && step === 16) {
+      const chord = odd ? [73.42, 110, 174.61] : [110, 164.81, 220];
+      for (const f of chord) this.stab(f, t, 0.05 + I * 0.04);
+    }
+  }
+
+  // dark celesta chime: triangle + octave shimmer, long ring through the hall
+  chime(freq, t, vel, dest) {
+    const ctx = this.ctx;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vel, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2400;
+    g.connect(lp).connect(dest ?? this.padBus);
+    const specs = [[1, 1, 'triangle'], [2, 0.28, 'sine'], [2.99, 0.1, 'sine']];
+    for (const [mult, amp, type] of specs) {
+      const osc = ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.value = freq * mult;
+      osc.detune.value = (Math.random() - 0.5) * 7;
+      const og = ctx.createGain();
+      og.gain.value = amp;
+      osc.connect(og).connect(g);
+      osc.start(t);
+      osc.stop(t + 1.5);
+    }
+  }
+
+  // short filtered saw chord stab
+  stab(freq, t, vel) {
+    const ctx = this.ctx;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(900, t);
+    lp.frequency.exponentialRampToValueAtTime(220, t + 0.3);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vel, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.34);
+    osc.connect(lp).connect(g).connect(this.combatBus);
+    osc.start(t);
+    osc.stop(t + 0.4);
   }
 
   pluck(freq, t, vel, cutoff) {
@@ -266,16 +365,33 @@ export class AudioSystem {
         if (this.state === 'combat') this.scheduleStep(this.step, this.nextStep);
         this.nextStep += this.stepDur;
         this.step = (this.step + 1) % 32;
+        if (this.step === 0) this.section++;
       }
-      // combat layer fades in/out
+      // combat + lead layers fade in/out
       const target = this.state === 'combat' ? 1.25 : 0;
       const cur = this.combatBus.gain.value;
       this.combatBus.gain.value = cur + (target - cur) * Math.min(1, dt * 1.1);
+      const leadTarget = this.state === 'combat' ? 1 : 0;
+      const leadCur = this.leadBus.gain.value;
+      this.leadBus.gain.value = leadCur + (leadTarget - leadCur) * Math.min(1, dt * 0.8);
       // sombre pads in the lulls
       this.padTimer -= dt;
       if (this.padTimer <= 0) {
         this.padTimer = 10 + Math.random() * 6;
         if (this.state !== 'combat') this.playPad();
+      }
+      // sparse music-box chimes while the court is quiet
+      this.chimeTimer -= dt;
+      if (this.chimeTimer <= 0) {
+        this.chimeTimer = 3.5 + Math.random() * 5;
+        if (this.state !== 'combat') {
+          const NOTES = [220, 261.63, 329.63, 440, 523.25, 392];
+          const n = NOTES[(Math.random() * NOTES.length) | 0];
+          this.chime(n, ctx.currentTime + 0.05, 0.06, this.padBus);
+          if (Math.random() < 0.4) {
+            this.chime(n * 1.5 > 500 ? n / 2 : n * 1.5, ctx.currentTime + 0.4 + Math.random() * 0.3, 0.04, this.padBus);
+          }
+        }
       }
     }
     // Heartbeat under low HP.
@@ -313,6 +429,7 @@ export class AudioSystem {
     g.gain.setValueAtTime(0.06, ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0008, ctx.currentTime + 5);
     g.connect(this.musicGain);
+    if (this.reverb) g.connect(this.reverb);  // let the bell ring in the hall
     for (const [mult, amp] of [[1, 1], [2.76, 0.4], [5.4, 0.18]]) {
       const osc = ctx.createOscillator();
       osc.type = 'sine';

@@ -206,7 +206,7 @@ class Enemy {
         if (this.type === 'caster') {
           this.castBolt(player);
         } else if (dist < this.cfg.attackRange + 0.5) {
-          player.damage(this.cfg.damage, game);
+          player.damage(this.cfg.damage, game, this.position);
           if (this.cfg.knockback) player.knockback(toPlayer, this.cfg.knockback);
         } else if (this.type === 'boss') {
           // slam misses: still thud

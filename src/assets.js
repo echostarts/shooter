@@ -49,6 +49,7 @@ export const MANIFEST = {
     perkRites: 'icons/perk_rites.svg',
     weaponCrossbow: 'icons/weapon_crossbow.svg',
     weaponHex: 'icons/weapon_hex.svg',
+    bossSkull: 'icons/boss_skull.svg',
   },
   sfx: {
     shotCrossbow1: 'sfx/shot_crossbow_1.ogg',

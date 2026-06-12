@@ -294,6 +294,7 @@ export class WeaponSystem {
     xb.recock = C.fireInterval * 0.8;
     xb.bolt.visible = false;
     this.updateString(xb);
+    this.game.ui.crosshairKick();
     this.game.audio.playOne(['shotCrossbow1', 'shotCrossbow2'], { volume: 0.9 });
 
     const origin = new THREE.Vector3();
@@ -340,6 +341,7 @@ export class WeaponSystem {
     this.charges--;
     this.cooldown = CONFIG.hex.fireInterval;
     this.recoil = 0.7;
+    this.game.ui.crosshairKick();
     this.game.audio.play('hexCast', { volume: 0.9, pitch: 0.75 });
 
     const origin = new THREE.Vector3();
@@ -385,6 +387,7 @@ export class WeaponSystem {
       if (this.rechargeTimer >= CONFIG.hex.rechargeTime * (this.game.mods?.hexRecharge ?? 1)) {
         this.rechargeTimer = 0;
         this.charges++;
+        this.game.onHexReady();
       }
     } else this.rechargeTimer = 0;
 
