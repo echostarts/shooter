@@ -171,7 +171,7 @@ export class Level {
 
   buildLights() {
     // single shadow-casting "moon"
-    const moon = new THREE.DirectionalLight(0x8fa3c8, 1.1);
+    const moon = new THREE.DirectionalLight(0x8fa3c8, 1.45);
     moon.position.set(-22, 34, 14);
     moon.castShadow = true;
     moon.shadow.mapSize.set(2048, 2048);
