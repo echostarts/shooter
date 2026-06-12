@@ -1,5 +1,36 @@
 import * as THREE from 'three';
 
+// Shared soft radial glow with cross streaks (muzzle flash, projectile
+// halos, pickup shine). Built once, cached.
+let _glowTex = null;
+export function getGlowTexture() {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const rad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  rad.addColorStop(0, 'rgba(255,250,240,1)');
+  rad.addColorStop(0.25, 'rgba(255,235,200,0.8)');
+  rad.addColorStop(0.55, 'rgba(255,220,160,0.22)');
+  rad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = rad;
+  g.fillRect(0, 0, 128, 128);
+  g.globalCompositeOperation = 'lighter';
+  g.translate(64, 64);
+  for (let i = 0; i < 2; i++) {
+    g.rotate(Math.PI / 2 * i);
+    const streak = g.createLinearGradient(-64, 0, 64, 0);
+    streak.addColorStop(0, 'rgba(255,240,210,0)');
+    streak.addColorStop(0.5, 'rgba(255,245,225,0.55)');
+    streak.addColorStop(1, 'rgba(255,240,210,0)');
+    g.fillStyle = streak;
+    g.fillRect(-64, -3, 128, 6);
+  }
+  _glowTex = new THREE.CanvasTexture(c);
+  _glowTex.colorSpace = THREE.SRGBColorSpace;
+  return _glowTex;
+}
+
 const MAX = 1500;
 
 // One pooled additive point cloud for every effect in the game.

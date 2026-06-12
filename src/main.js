@@ -253,6 +253,7 @@ class Game {
     this.combo = { chain: 0, timer: 0, mult: 1 };
     this.choosingPerk = false;
     this.ui.hidePerks();
+    this.level.resetProps();
     this.enemies.reset();
     this.projectiles.reset();
     this.particles.reset();
@@ -270,6 +271,7 @@ class Game {
 
   exitToMenu() {
     this.audio.play('uiClick', { volume: 0.4 });
+    this.level.resetProps();
     this.enemies.reset();
     this.projectiles.reset();
     this.particles.reset();

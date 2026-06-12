@@ -9,6 +9,9 @@ export class Level {
     this.scene = scene;
     this.renderer = renderer;
     this.colliders = [];   // THREE.Box3 list (walls + props), used by player & enemies
+    this.props = [];       // destructible entries { box, obj } (the Warden crushes them)
+    this.dyingProps = [];  // crushed props animating away
+    this.crushedProps = []; // kept for restoration on restart
     this.torches = [];     // { light, baseIntensity, seed }
     this.gates = [];       // { position (Vector3), forward (Vector3) }
     this.disposables = [];
@@ -102,6 +105,7 @@ export class Level {
       // clamp very tall/very thin boxes a bit for fairer movement
       box.min.y = 0;
       this.colliders.push(box);
+      this.props.push({ box, obj });
     }
     return obj;
   }
@@ -208,8 +212,49 @@ export class Level {
     }
   }
 
+  // The Warden smashes through cover: drop the collider, sink the prop.
+  crushProp(box) {
+    const i = this.props.findIndex((p) => p.box === box);
+    if (i < 0) return null;
+    const { obj } = this.props.splice(i, 1)[0];
+    const ci = this.colliders.indexOf(box);
+    if (ci >= 0) this.colliders.splice(ci, 1);
+    const rec = { box, obj, s0: obj.scale.x, y0: obj.position.y, r0: obj.rotation.x };
+    this.crushedProps.push(rec);
+    this.dyingProps.push({ obj, t: 0, s0: rec.s0, y0: rec.y0 });
+    const c = box.getCenter(new THREE.Vector3());
+    c.y = Math.min(1.2, box.max.y * 0.5);
+    return c;
+  }
+
+  // bring crushed cover back for a fresh run
+  resetProps() {
+    this.dyingProps.length = 0;
+    for (const rec of this.crushedProps) {
+      rec.obj.scale.setScalar(rec.s0);
+      rec.obj.position.y = rec.y0;
+      rec.obj.rotation.x = rec.r0;
+      if (!rec.obj.parent) this.scene.add(rec.obj);
+      this.colliders.push(rec.box);
+      this.props.push({ box: rec.box, obj: rec.obj });
+    }
+    this.crushedProps.length = 0;
+  }
+
   // torch flicker + gate swirl particles
   update(dt, time, particles) {
+    for (let i = this.dyingProps.length - 1; i >= 0; i--) {
+      const d = this.dyingProps[i];
+      d.t += dt;
+      const f = Math.min(1, d.t / 0.45);
+      d.obj.scale.setScalar(d.s0 * (1 - f * 0.65));
+      d.obj.position.y = d.y0 - f * f * 2.2;
+      d.obj.rotation.x += dt * 0.7;
+      if (f >= 1) {
+        this.scene.remove(d.obj);
+        this.dyingProps.splice(i, 1);
+      }
+    }
     for (const t of this.torches) {
       const n = Math.sin(time * 11 + t.seed) * 0.5 + Math.sin(time * 23 + t.seed * 2.7) * 0.3 + Math.sin(time * 5 + t.seed * 0.3) * 0.4;
       t.light.intensity = t.baseIntensity * (1 + n * 0.18);

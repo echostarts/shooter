@@ -2,40 +2,13 @@ import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { ASSETS } from './assets.js';
 import { castObstacles } from './projectiles.js';
+import { getGlowTexture } from './particles.js';
 
 const GOLD = new THREE.Color(CONFIG.colors.gold);
 const _UP = new THREE.Vector3(0, 1, 0);
 const _ZERO_EULER = new THREE.Euler();
 const _v = new THREE.Vector3(); const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3(); const _v4 = new THREE.Vector3();
-
-// Soft radial glow with cross streaks for the muzzle flash / bolt glow.
-function makeFlashTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d');
-  const rad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  rad.addColorStop(0, 'rgba(255,244,210,1)');
-  rad.addColorStop(0.22, 'rgba(255,205,100,0.85)');
-  rad.addColorStop(0.55, 'rgba(235,150,45,0.25)');
-  rad.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = rad;
-  g.fillRect(0, 0, 128, 128);
-  g.globalCompositeOperation = 'lighter';
-  g.translate(64, 64);
-  for (let i = 0; i < 2; i++) {
-    g.rotate(Math.PI / 2 * i);
-    const streak = g.createLinearGradient(-64, 0, 64, 0);
-    streak.addColorStop(0, 'rgba(255,200,90,0)');
-    streak.addColorStop(0.5, 'rgba(255,230,170,0.7)');
-    streak.addColorStop(1, 'rgba(255,200,90,0)');
-    g.fillStyle = streak;
-    g.fillRect(-64, -3, 128, 6);
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
 
 // Viewmodel rig + two weapons. All motion is procedural: sway, bob,
 // sprint tilt, recoil, reload dip, camera lag, switch raise/lower.
@@ -73,7 +46,7 @@ export class WeaponSystem {
     this.aiming = false;
     this.aimBlend = 0;
 
-    this.flashTex = makeFlashTexture();
+    this.flashTex = getGlowTexture();
 
     // flying bolt pool: a real projectile you can see, with a spark trail
     this.flyBolts = [];
@@ -564,7 +537,8 @@ export class WeaponSystem {
     if (this.flashTime > 0) {
       this.flashTime -= dt;
       const f = Math.max(0, this.flashTime / F.muzzleFlashTime);
-      this.flash.material.opacity = f;
+      this.flash.material.opacity = f * (1 - this.aimBlend * 0.45);
+      this.flash.scale.setScalar(0.5 - this.aimBlend * 0.22);
       this.flash.material.rotation = Math.random() * Math.PI;
       this.flashLight.intensity = 26 * f;
     } else {

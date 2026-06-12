@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
+import { getGlowTexture } from './particles.js';
 
 // Ray vs AABB slab test. Returns distance t >= 0 or null.
 export function rayBox(origin, dir, box) {
@@ -40,30 +41,46 @@ export class ProjectileSystem {
     this.scene = scene;
     this.game = game;
 
+    const glowTex = getGlowTexture();
+    const mkGlow = (color, scale, opacity = 0.9) => {
+      const g = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color, transparent: true, opacity,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      }));
+      g.scale.setScalar(scale);
+      return g;
+    };
+
+    // player hex orbs: bright core + violet halo + point light
     this.orbs = [];
-    const orbGeo = new THREE.SphereGeometry(0.16, 12, 10);
-    const orbMat = new THREE.MeshBasicMaterial({ color: 0xb18cff });
-    orbMat.color.multiplyScalar(2.2); // push into bloom
+    const orbGeo = new THREE.SphereGeometry(0.11, 12, 10);
+    const orbMat = new THREE.MeshBasicMaterial({ color: 0xe8dcff });
+    orbMat.color.multiplyScalar(2.4); // push into bloom
     for (let i = 0; i < ORB_POOL; i++) {
       const mesh = new THREE.Mesh(orbGeo, orbMat);
       mesh.visible = false;
       const light = new THREE.PointLight(CONFIG.colors.violet, 7, 7, 2);
       light.visible = false;
       mesh.add(light);
+      const halo = mkGlow(new THREE.Color(CONFIG.colors.violet).multiplyScalar(1.6), 0.85);
+      mesh.add(halo);
       scene.add(mesh);
-      this.orbs.push({ mesh, light, active: false, vel: new THREE.Vector3(), age: 0 });
+      this.orbs.push({ mesh, light, halo, active: false, vel: new THREE.Vector3(), age: 0 });
     }
     this.orbGeo = orbGeo; this.orbMat = orbMat;
 
+    // caster bolts: white-hot core in a violet halo, comet trail in update()
     this.bolts = [];
-    const boltGeo = new THREE.SphereGeometry(0.13, 10, 8);
-    const boltMat = new THREE.MeshBasicMaterial({ color: 0x9b6dff });
-    boltMat.color.multiplyScalar(2.4);
+    const boltGeo = new THREE.SphereGeometry(0.07, 10, 8);
+    const boltMat = new THREE.MeshBasicMaterial({ color: 0xf2eaff });
+    boltMat.color.multiplyScalar(2.6);
     for (let i = 0; i < BOLT_POOL; i++) {
       const mesh = new THREE.Mesh(boltGeo, boltMat);
       mesh.visible = false;
+      const halo = mkGlow(new THREE.Color(0x9b6dff).multiplyScalar(1.8), 0.62);
+      mesh.add(halo);
       scene.add(mesh);
-      this.bolts.push({ mesh, active: false, vel: new THREE.Vector3(), age: 0 });
+      this.bolts.push({ mesh, halo, active: false, vel: new THREE.Vector3(), age: 0 });
     }
     this.boltGeo = boltGeo; this.boltMat = boltMat;
   }
@@ -121,12 +138,14 @@ export class ProjectileSystem {
         continue;
       }
       p.addScaledVector(o.vel, dt);
-      // violet trail
-      if (Math.random() < dt * 60) {
+      o.halo.scale.setScalar(0.85 + Math.sin(o.age * 17) * 0.09);
+      // swirling violet trail
+      for (let i = 0; i < 2; i++) {
+        const a = o.age * 22 + i * Math.PI;
         game.particles.spawn({
-          x: p.x, y: p.y, z: p.z,
-          vx: 0, vy: 0.2, vz: 0,
-          r: 0.55, g: 0.36, b: 0.96, life: 0.35, size: 0.07, gravity: 0, drag: 2,
+          x: p.x + Math.cos(a) * 0.1, y: p.y + Math.sin(a) * 0.1, z: p.z,
+          vx: 0, vy: 0.25, vz: 0,
+          r: 0.6, g: 0.4, b: 1, life: 0.4, size: 0.08, gravity: 0, drag: 2,
         });
       }
     }
@@ -155,10 +174,20 @@ export class ProjectileSystem {
         continue;
       }
       p.addScaledVector(b.vel, dt);
-      if (Math.random() < dt * 40) {
+      // comet tail: dense violet wisps stretching behind the core
+      b.halo.scale.setScalar(0.62 + Math.sin(b.age * 21) * 0.07);
+      const tail = dir.clone().multiplyScalar(-1);
+      for (let i = 0; i < 2; i++) {
+        const back = Math.random() * 0.55;
         game.particles.spawn({
-          x: p.x, y: p.y, z: p.z, vx: 0, vy: 0, vz: 0,
-          r: 0.45, g: 0.3, b: 0.85, life: 0.3, size: 0.06, gravity: 0, drag: 2,
+          x: p.x + tail.x * back + (Math.random() - 0.5) * 0.05,
+          y: p.y + tail.y * back + (Math.random() - 0.5) * 0.05,
+          z: p.z + tail.z * back + (Math.random() - 0.5) * 0.05,
+          vx: 0, vy: 0.1, vz: 0,
+          r: 0.62 - back * 0.4, g: 0.4 - back * 0.25, b: 1 - back * 0.35,
+          life: 0.3 + Math.random() * 0.2,
+          size: 0.1 * (1 - back * 0.8) + 0.03,
+          gravity: 0, drag: 2.5,
         });
       }
     }

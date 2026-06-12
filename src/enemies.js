@@ -3,6 +3,7 @@ import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { CONFIG } from './config.js';
 import { ASSETS } from './assets.js';
 import { rayBox } from './projectiles.js';
+import { getGlowTexture } from './particles.js';
 
 const VIOLET = new THREE.Color(CONFIG.colors.violet);
 const CYAN = new THREE.Color(CONFIG.colors.cyan);
@@ -316,7 +317,28 @@ class Enemy {
 
   // keep enemies out of props/walls (2D circle vs AABB push-out)
   resolveCollisions() {
-    const r = this.radius;
+    const game = this.game;
+    const r = this.type === 'boss' ? this.radius * 0.6 : this.radius;
+    if (this.type === 'boss') {
+      // the Warden does not walk around furniture — he walks through it
+      for (const b of [...game.level.colliders]) {
+        const cx = Math.max(b.min.x, Math.min(this.position.x, b.max.x));
+        const cz = Math.max(b.min.z, Math.min(this.position.z, b.max.z));
+        const dx = this.position.x - cx;
+        const dz = this.position.z - cz;
+        if (dx * dx + dz * dz < (r + 0.3) ** 2) {
+          const at = game.level.crushProp(b);
+          if (at) {
+            game.particles.burst(at, {
+              count: 26, color: 0x8a8378, color2: 0x4a443c,
+              speed: 4.5, life: 0.8, size: 0.12, gravity: 8, up: 0.8,
+            });
+            game.audio.playOne(['impactStone0', 'impactStone1', 'impactStone2'], { volume: 0.85, pitch: 0.55 });
+            game.shake(0.18, 0.035);
+          }
+        }
+      }
+    }
     for (const b of this.game.level.colliders) {
       if (this.position.y > b.max.y) continue;
       const cx = Math.max(b.min.x, Math.min(this.position.x, b.max.x));
@@ -428,10 +450,40 @@ export class EnemyManager {
     this.spawnQueue = [];
     this.batchTimer = 0;
 
-    const geo = new THREE.IcosahedronGeometry(0.16, 0);
-    const mat = new THREE.MeshBasicMaterial({ color: CYAN.clone().multiplyScalar(1.9) });
-    this.pickupGeo = geo;
-    this.pickupMat = mat;
+    // cyan healing vial: the real flask model, glowing, with a soft halo
+    this.vialTemplate = null;
+  }
+
+  buildVial() {
+    if (!this.vialTemplate) {
+      const v = ASSETS.models.potion.scene.clone(true);
+      let mat = null;
+      v.traverse((c) => {
+        if (c.isMesh) {
+          if (!mat) {
+            mat = c.material.clone();
+            mat.color.set(0xbdf5f0);
+            mat.emissive = CYAN.clone();
+            mat.emissiveIntensity = 0.6;
+          }
+          c.material = mat;
+          c.castShadow = false;
+        }
+      });
+      v.scale.setScalar(2.4);
+      v.position.y = -0.18;
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: getGlowTexture(), color: CYAN.clone().multiplyScalar(1.5),
+        transparent: true, opacity: 0.75, depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }));
+      halo.scale.setScalar(0.85);
+      halo.position.y = 0.02;
+      const tpl = new THREE.Group();
+      tpl.add(v, halo);
+      this.vialTemplate = tpl;
+    }
+    return this.vialTemplate.clone(true);
   }
 
   buildWave(n) {
@@ -551,7 +603,7 @@ export class EnemyManager {
   }
 
   dropVial(pos, jitter = 0) {
-    const mesh = new THREE.Mesh(this.pickupGeo, this.pickupMat);
+    const mesh = this.buildVial();
     mesh.position.set(pos.x + (Math.random() - 0.5) * jitter, 0.55, pos.z + (Math.random() - 0.5) * jitter);
     this.game.scene.add(mesh);
     this.pickups.push({ mesh, age: Math.random() * 4, dead: false });
