@@ -285,6 +285,14 @@ class Game {
       this.audio.update(rawDt, this.player.hp / CONFIG.player.hp);
       this.ui.updateHud(this);
 
+      // footsteps keyed to the bob cycle
+      const stepPhase = Math.floor(this.player.bobPhase / Math.PI);
+      if (stepPhase !== this._lastStep && this.player.onGround && this.player.speed2D > 1.5) {
+        this.audio.playOne(['footstep0', 'footstep1', 'footstep2', 'footstep3'],
+          { volume: this.player.sprinting ? 0.32 : 0.22, pitch: 0.92 });
+      }
+      this._lastStep = stepPhase;
+
       // camera shake + idle breathing
       if (this.shakeTime > 0) {
         this.shakeTime -= rawDt;

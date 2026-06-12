@@ -179,7 +179,9 @@ export class Level {
     Object.assign(moon.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext, near: 4, far: 90 });
     moon.shadow.bias = -0.0004;
     this.scene.add(moon);
-    this.scene.add(new THREE.AmbientLight(0x1a2030, 0.65));
+    // cool sky bounce + faint warm ground bounce keeps silhouettes readable
+    this.scene.add(new THREE.HemisphereLight(0x2a3654, 0x171008, 0.8));
+    this.scene.add(new THREE.AmbientLight(0x1a2030, 0.35));
 
     // warm wall-mounted torches around the perimeter (no shadows)
     const rng = mulberry32(0xbeef);

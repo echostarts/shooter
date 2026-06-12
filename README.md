@@ -64,9 +64,9 @@ Full per-file table with authors and licenses: [`public/assets/CREDITS.md`](publ
 - **Ruins / cover props** — Quaternius *Ultimate Modular Ruins* (CC0): arch,
   columns, barrel, crate, dead tree. The pack ships FBX only, converted to GLB
   with Facebook **FBX2glTF** during the build.
-- **Weapon parts & torches** — Quaternius *Medieval Weapons* (Bow_Evil, CC0,
-  FBX→GLB) and *Fantasy Props MegaKit* free Standard version (Potion_1,
-  Torch_Metal, CC0, native glTF; trim textures downscaled 2048→1024).
+- **Flask & torches** — Quaternius *Fantasy Props MegaKit* free Standard
+  version (Potion_1, Torch_Metal, CC0, native glTF; trim textures downscaled
+  2048→1024). The crossbow viewmodel is fully procedural.
 - **HDRI** — Poly Haven `dikhololo_night` 2k (CC0), via the public API.
 - **PBR textures** — Poly Haven `cobblestone_floor_08` and `rock_wall_08`
   (diffuse / normal-GL / roughness / AO, 1k, CC0).
@@ -103,9 +103,11 @@ src/ui.js           HUD, screens, banners (DOM)
 
 - **No CC0 crossbow model exists in the Quaternius catalogue** (checked
   Medieval Weapons, Ultimate RPG, Fantasy Props MegaKit, Medieval Dungeon,
-  Survival). Per the fallback policy the crossbow viewmodel is a hybrid: the
-  real *Bow_Evil* mesh mounted as the lath on a procedural wooden stock with
-  gold emissive trim.
+  Survival). Per the fallback policy the crossbow viewmodel is built
+  procedurally from primitives: tapered stock, steel recurve lath, animated
+  string (snaps on fire, re-draws on recock), loaded bolt, stirrup, trigger
+  guard and gold inlays — tuned by screenshot iteration until it read as an
+  ornate hand crossbow.
 - Enemy hit detection uses analytic ray-vs-AABB body boxes (lower body /
   upper-body crit zone) instead of skinned-mesh raycasts — far cheaper and
   deterministic at 24 live enemies.

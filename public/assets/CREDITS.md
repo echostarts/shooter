@@ -26,9 +26,10 @@ Converted from FBX to GLB with Facebook FBX2glTF (the pack ships Blend/FBX/OBJ o
 
 ## 3D Models — Weapons & props
 
+The crossbow viewmodel is fully procedural (built from three.js primitives) — no downloaded asset.
+
 | Asset | Author | Source | License |
 |---|---|---|---|
-| `models/Bow_Evil.glb` (crossbow lath; stock is procedural) | Quaternius | https://quaternius.com/packs/medievalweapons.html | CC0 1.0 |
 | `models/Potion_1.gltf` + `T_Trim_Props_*.png` (hex launcher flask) | Quaternius | https://quaternius.com/packs/fantasypropsmegakit.html (Fantasy Props MegaKit, free Standard version via itch.io) | CC0 1.0 |
 | `models/Torch_Metal.gltf` (arena torches) | Quaternius | https://quaternius.com/packs/fantasypropsmegakit.html | CC0 1.0 |
 
@@ -70,6 +71,7 @@ All SFX by Kenney (https://kenney.nl), CC0 1.0, renamed from the original pack f
 | `sfx/death_bell.ogg` | impactBell_heavy_004.ogg | Impact Sounds |
 | `sfx/pickup_vial.ogg` | handleCoins.ogg | RPG Audio |
 | `sfx/caster_bolt.ogg` | impactGlass_light_000.ogg | Impact Sounds |
+| `sfx/footstep_0/1/2/4.ogg` | footstep00/01/02/04.ogg | RPG Audio |
 
 Pack pages: https://kenney.nl/assets/impact-sounds , https://kenney.nl/assets/rpg-audio , https://kenney.nl/assets/ui-audio
 

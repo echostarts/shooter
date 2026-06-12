@@ -17,7 +17,6 @@ export const MANIFEST = {
     barrel: 'models/Barrel.glb',
     crate: 'models/Crate.glb',
     deadTree: 'models/DeadTree_1.glb',
-    bow: 'models/Bow_Evil.glb',
     potion: 'models/Potion_1.gltf',
     torch: 'models/Torch_Metal.gltf',
   },
@@ -62,6 +61,10 @@ export const MANIFEST = {
     deathBell: 'sfx/death_bell.ogg',
     pickupVial: 'sfx/pickup_vial.ogg',
     casterBolt: 'sfx/caster_bolt.ogg',
+    footstep0: 'sfx/footstep_0.ogg',
+    footstep1: 'sfx/footstep_1.ogg',
+    footstep2: 'sfx/footstep_2.ogg',
+    footstep3: 'sfx/footstep_4.ogg',
   },
 };
 

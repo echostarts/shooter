@@ -94,13 +94,9 @@ class Enemy {
         c.frustumCulled = false;
         c.material = makeDissolvable(c.material.clone());
         this.materials.push(c.material);
-        if (type === 'brute') {
-          c.material.emissive = VIOLET.clone();
-          c.material.emissiveIntensity = 0.1;
-        } else if (type === 'caster') {
-          c.material.emissive = VIOLET.clone();
-          c.material.emissiveIntensity = 0.07;
-        }
+        // faint corruption glow — strongest on the brute, subtle elsewhere
+        c.material.emissive = VIOLET.clone();
+        c.material.emissiveIntensity = type === 'brute' ? 0.045 : type === 'caster' ? 0.03 : 0.02;
       }
     });
     game.scene.add(this.root);
@@ -164,10 +160,10 @@ class Enemy {
     if (this.flashTimer > 0) {
       this.flashTimer -= dt;
       if (this.flashTimer <= 0) {
+        const glow = this.type === 'brute' ? 0.045 : this.type === 'caster' ? 0.03 : 0.02;
         for (const m of this.materials) {
-          if (this.type === 'brute') { m.emissive.copy(VIOLET); m.emissiveIntensity = 0.1; }
-          else if (this.type === 'caster') { m.emissive.copy(VIOLET); m.emissiveIntensity = 0.07; }
-          else { m.emissive.setRGB(0, 0, 0); m.emissiveIntensity = 1; }
+          m.emissive.copy(VIOLET);
+          m.emissiveIntensity = glow;
         }
       }
     }

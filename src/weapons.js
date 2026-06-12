@@ -4,6 +4,10 @@ import { ASSETS } from './assets.js';
 import { castObstacles } from './projectiles.js';
 
 const GOLD = new THREE.Color(CONFIG.colors.gold);
+const _UP = new THREE.Vector3(0, 1, 0);
+const _ZERO_EULER = new THREE.Euler();
+const _v = new THREE.Vector3(); const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3(); const _v4 = new THREE.Vector3();
 
 // Viewmodel rig + two weapons. All motion is procedural: sway, bob,
 // sprint tilt, recoil, reload dip, camera lag, switch raise/lower.
@@ -76,45 +80,137 @@ export class WeaponSystem {
 
   buildCrossbow() {
     const root = new THREE.Group();
-    root.position.set(0.36, -0.31, -0.62);
+    root.position.set(0.31, -0.27, -0.46);
+    const baseRot = new THREE.Euler(0.015, -0.11, 0.02); // 3/4 hero pose
 
-    // procedural wood stock with gold trim (no crossbow asset exists
-    // in CC0 sources — lath comes from the real Bow_Evil model)
-    const wood = new THREE.MeshStandardMaterial({ color: 0x4a3424, roughness: 0.75, metalness: 0.05 });
-    const trim = new THREE.MeshStandardMaterial({
-      color: 0x9a7838, roughness: 0.35, metalness: 0.85,
-      emissive: GOLD, emissiveIntensity: 0.5,
+    const wood = new THREE.MeshStandardMaterial({ color: 0x3b2b1d, roughness: 0.8, metalness: 0.04 });
+    const woodDark = new THREE.MeshStandardMaterial({ color: 0x261a10, roughness: 0.85, metalness: 0.04 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0x3f444d, roughness: 0.38, metalness: 0.92 });
+    const gold = new THREE.MeshStandardMaterial({
+      color: 0xb08a3e, roughness: 0.32, metalness: 1,
+      emissive: GOLD, emissiveIntensity: 0.16,
     });
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.09, 0.66), wood);
-    stock.position.z = 0.05;
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.02, 0.62), trim);
-    rail.position.set(0, 0.055, 0.03);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.17, 0.075), wood);
-    grip.position.set(0, -0.11, 0.2);
-    grip.rotation.x = 0.35;
-    root.add(stock, rail, grip);
 
-    // the evil bow lath, mounted horizontally at the front
-    const bow = ASSETS.models.bow.scene.clone(true);
-    bow.traverse((c) => { if (c.isMesh) c.castShadow = false; });
-    bow.scale.setScalar(0.13);
-    // limbs (local Y) horizontal, bow depth (local X) pointing away
-    bow.setRotationFromMatrix(new THREE.Matrix4().makeBasis(
-      new THREE.Vector3(0, 0, -1),
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(0, -1, 0)));
-    bow.position.set(-0.04, 0.05, -0.3);
-    root.add(bow);
+    // stock: tapered two-part body + raised cheek piece
+    const butt = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.078, 0.2), wood);
+    butt.position.set(0, -0.006, 0.15);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.064, 0.34), wood);
+    body.position.set(0, 0, -0.12);
+    const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.022, 0.18), woodDark);
+    cheek.position.set(0, 0.05, 0.14);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.15, 0.058), woodDark);
+    grip.position.set(0, -0.1, 0.19);
+    grip.rotation.x = 0.5;
+    root.add(butt, body, cheek, grip);
 
-    const muzzle = new THREE.Object3D();
-    muzzle.position.set(0, 0.06, -0.46);
-    root.add(muzzle);
+    // steel bolt groove on top
+    const railTop = 0.04;
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.01, 0.48), steel);
+    rail.position.set(0, railTop, -0.12);
+    root.add(rail);
 
-    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.013, 0.013, 0.34), trim);
-    bolt.position.set(0, 0.058, -0.14);
+    // lock block with gold side inlays
+    const lock = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.042, 0.07), steel);
+    lock.position.set(0, 0.043, -0.01);
+    const inlay = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.074, 14), gold);
+    inlay.rotation.z = Math.PI / 2;
+    inlay.position.copy(lock.position);
+    root.add(lock, inlay);
+
+    // recurve lath: tube along a parabolic curve, flat in the XZ plane
+    const lathZ = -0.32;
+    const half = 0.215;
+    const depth = 0.075;
+    const pts = [];
+    for (let i = 0; i <= 8; i++) {
+      const x = -half + (i / 8) * half * 2;
+      pts.push(new THREE.Vector3(x, 0, -depth * (1 - (x / half) ** 2)));
+    }
+    const lath = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.0095, 8), steel);
+    const lathG = new THREE.Group();
+    lathG.position.set(0, 0.035, lathZ);
+    lathG.add(lath);
+    // gold tip caps
+    for (const sx of [-1, 1]) {
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.013, 0.045, 10), gold);
+      cap.position.set(sx * half, 0, 0.012);
+      cap.rotation.z = sx * 1.25;
+      lathG.add(cap);
+    }
+    root.add(lathG);
+
+    // string: two segments from the lath tips to the moving nut
+    const stringMat = new THREE.MeshBasicMaterial({ color: 0xcabb96 });
+    const stringGeo = new THREE.CylinderGeometry(0.0032, 0.0032, 1, 5);
+    const stringL = new THREE.Mesh(stringGeo, stringMat);
+    const stringR = new THREE.Mesh(stringGeo, stringMat);
+    root.add(stringL, stringR);
+
+    // loaded bolt: dark shaft, gold head, twin fletches
+    const bolt = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.3, 7), woodDark);
+    shaft.rotation.x = Math.PI / 2;
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.0085, 0.04, 8), gold);
+    head.rotation.x = -Math.PI / 2;
+    head.position.z = -0.17;
+    const fletchMat = new THREE.MeshStandardMaterial({
+      color: 0xc8a050, roughness: 0.7, side: THREE.DoubleSide,
+      emissive: GOLD, emissiveIntensity: 0.04,
+    });
+    for (const r of [0, Math.PI / 2]) {
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(0.014, 0.05), fletchMat);
+      f.position.z = 0.125;
+      f.rotation.set(0, 0, r);
+      f.rotateX(0.12);
+      bolt.add(f);
+    }
+    bolt.add(shaft, head);
+    bolt.position.set(0, railTop + 0.012, -0.2);
     root.add(bolt);
 
-    return { root, muzzle, name: 'crossbow', boltMesh: bolt, basePos: root.position.clone() };
+    // foot stirrup at the nose + trigger guard
+    const stirrup = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.004, 8, 18, Math.PI), gold);
+    stirrup.position.set(0, 0.012, -0.41);
+    stirrup.rotation.z = Math.PI;
+    root.add(stirrup);
+    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.021, 0.0038, 8, 16, Math.PI), steel);
+    guard.position.set(0, -0.034, 0.085);
+    guard.rotation.set(0, Math.PI / 2, Math.PI);
+    root.add(guard);
+    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.026, 0.011), steel);
+    trigger.position.set(0, -0.04, 0.08);
+    trigger.rotation.x = 0.25;
+    root.add(trigger);
+
+    const muzzle = new THREE.Object3D();
+    muzzle.position.set(0, railTop + 0.012, -0.42);
+    root.add(muzzle);
+
+    const w = {
+      root, muzzle, name: 'crossbow', basePos: root.position.clone(), baseRot,
+      bolt, stringL, stringR,
+      stringY: 0.035, lathZ, lathHalf: half,
+      nutZ: -0.03, nutTarget: -0.03,    // string position: cocked at the lock
+      recock: 0,                         // time until the string is re-drawn
+    };
+    this.updateString(w);
+    return w;
+  }
+
+  // place the two string segments between the lath tips and the nut
+  updateString(w) {
+    const tipY = w.stringY;
+    const nut = _v.set(0, tipY, w.nutZ);
+    for (const [mesh, sx] of [[w.stringL, -1], [w.stringR, 1]]) {
+      const tip = _v2.set(sx * w.lathHalf, tipY, w.lathZ + 0.012);
+      const mid = _v3.copy(tip).add(nut).multiplyScalar(0.5);
+      const dir = _v4.copy(nut).sub(tip);
+      const len = dir.length();
+      mesh.position.copy(mid);
+      mesh.quaternion.setFromUnitVectors(_UP, dir.normalize());
+      mesh.scale.set(1, len, 1);
+    }
   }
 
   buildHexLauncher() {
@@ -139,7 +235,7 @@ export class WeaponSystem {
 
     // violet orb hovering above the flask
     const orbMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(CONFIG.colors.violet).multiplyScalar(1.8) });
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), orbMat);
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 10), orbMat);
     orb.position.set(0, 0.42, 0);
     root.add(orb);
     const orbLight = new THREE.PointLight(CONFIG.colors.violet, 1.5, 2.5, 2);
@@ -149,7 +245,11 @@ export class WeaponSystem {
     muzzle.position.set(0, 0.44, -0.15);
     root.add(muzzle);
 
-    return { root, muzzle, orb, name: 'hex', basePos: root.position.clone() };
+    return {
+      root, muzzle, orb, name: 'hex',
+      basePos: root.position.clone(),
+      baseRot: new THREE.Euler(0.04, 0.18, -0.06),
+    };
   }
 
   other() { return this.current === this.crossbow ? 'hex' : 'crossbow'; }
@@ -184,6 +284,12 @@ export class WeaponSystem {
     this.cooldown = C.fireInterval;
     this.recoil = 1;
     this.flashTime = CONFIG.feel.muzzleFlashTime;
+    // string snaps forward, bolt leaves the rail, then auto-recock
+    const xb = this.crossbow;
+    xb.nutZ = xb.lathZ + 0.03;
+    xb.recock = C.fireInterval * 0.8;
+    xb.bolt.visible = false;
+    this.updateString(xb);
     this.game.audio.playOne(['shotCrossbow1', 'shotCrossbow2'], { volume: 0.9 });
 
     const origin = new THREE.Vector3();
@@ -318,11 +424,29 @@ export class WeaponSystem {
       w.basePos.y + this.swayY + bobY + idleY - reloadDip - switchDip,
       w.basePos.z + recoilZ * 0.06,
     );
+    const br = w.baseRot ?? _ZERO_EULER;
     w.root.rotation.set(
-      this.recoil * -CONFIG.crossbow.recoilKick * 3 + this.swayY * 0.6,
-      this.swayX * 0.6,
-      (player.sprinting ? -0.12 : 0) + this.swayX * 0.4,
+      br.x + this.recoil * -CONFIG.crossbow.recoilKick * 3 + this.swayY * 0.6,
+      br.y + this.swayX * 0.6,
+      br.z + (player.sprinting ? -0.12 : 0) + this.swayX * 0.4,
     );
+
+    // crossbow string recock + bolt visibility
+    const xb = this.crossbow;
+    if (xb.recock > 0) {
+      xb.recock -= dt;
+      if (xb.recock <= 0 && this.ammo > 0) {
+        this.game.audio.play('dryFire', { volume: 0.18, pitch: 1.5 });
+      }
+    } else {
+      const cocked = -0.03;
+      if (Math.abs(xb.nutZ - cocked) > 0.001) {
+        // draw the string back smoothly
+        xb.nutZ = THREE.MathUtils.lerp(xb.nutZ, cocked, 1 - Math.exp(-16 * dt));
+        this.updateString(xb);
+      }
+      xb.bolt.visible = this.ammo > 0 && this.reloading <= 0;
+    }
 
     // rig lags behind camera rotation
     const target = this.camera.quaternion;
@@ -333,7 +457,8 @@ export class WeaponSystem {
 
     // hex orb hover
     if (this.hex.root.visible) {
-      this.hex.orb.position.y = 0.42 + Math.sin(t * 3.1) * 0.014;
+      this.hex.orb.position.y = 0.44 + Math.sin(t * 3.1) * 0.016;
+      this.hex.orb.scale.setScalar(1 + Math.sin(t * 5.3) * 0.12);
       this.hex.orb.visible = this.charges > 0;
     }
 
